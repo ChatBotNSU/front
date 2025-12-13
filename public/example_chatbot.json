@@ -1,0 +1,294 @@
+{
+    "variables": [
+        {
+            "name": "user_name",
+            "type": "string"
+        },
+        {
+            "name": "user_age",
+            "type": "number"
+        },
+        {
+            "name": "file_path",
+            "type": "string"
+        }
+    ],
+    "graph": {
+        "root": 1,
+        "nodes": {
+            "1": {
+                "node_id": 1,
+                "type": "setmessage",
+                "position": {
+                    "x": 100,
+                    "y": 100
+                },
+                "bodies": [
+                    {
+                        "type": "text",
+                        "bodyData": {
+                            "text": "Привет! Как тебя зовут?"
+                        }
+                    },
+                    {
+                        "type": "buttons",
+                        "bodyData": {
+                            "buttons": [
+                                {
+                                    "label": "Начать"
+                                },
+                                {
+                                    "label": "Отмена"
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "2": {
+                "node_id": 2,
+                "type": "sendmessage",
+                "position": {
+                    "x": 100,
+                    "y": 300
+                }
+            },
+            "3": {
+                "node_id": 3,
+                "type": "textanswer",
+                "position": {
+                    "x": 100,
+                    "y": 500
+                },
+                "variable": "user_name"
+            },
+            "4": {
+                "node_id": 4,
+                "type": "setvar",
+                "position": {
+                    "x": 400,
+                    "y": 500
+                },
+                "assigned_variable": "user_name",
+                "operation": "=",
+                "operand": "user_name"
+            },
+            "5": {
+                "node_id": 5,
+                "type": "setmessage",
+                "position": {
+                    "x": 400,
+                    "y": 700
+                },
+                "bodies": [
+                    {
+                        "type": "text",
+                        "bodyData": {
+                            "text": "Приятно познакомиться, {{user_name}}!"
+                        }
+                    },
+                    {
+                        "type": "image",
+                        "bodyData": {
+                            "url": "https://example.com/image.jpg",
+                            "isVariable": false
+                        }
+                    }
+                ]
+            },
+            "6": {
+                "node_id": 6,
+                "type": "wait",
+                "position": {
+                    "x": 700,
+                    "y": 700
+                },
+                "delay": 2.5
+            },
+            "7": {
+                "node_id": 7,
+                "type": "condition",
+                "position": {
+                    "x": 700,
+                    "y": 900
+                },
+                "branches": [
+                    {
+                        "condition": {
+                            "variable": "user_age",
+                            "operator": ">=",
+                            "value": "18"
+                        }
+                    },
+                    {
+                        "condition": {
+                            "variable": "user_age",
+                            "operator": "<",
+                            "value": "18"
+                        }
+                    }
+                ]
+            },
+            "8": {
+                "node_id": 8,
+                "type": "setmessage",
+                "position": {
+                    "x": 1000,
+                    "y": 800
+                },
+                "bodies": [
+                    {
+                        "type": "text",
+                        "bodyData": {
+                            "text": "Вы совершеннолетний"
+                        }
+                    }
+                ]
+            },
+            "9": {
+                "node_id": 9,
+                "type": "setmessage",
+                "position": {
+                    "x": 1000,
+                    "y": 1000
+                },
+                "bodies": [
+                    {
+                        "type": "text",
+                        "bodyData": {
+                            "text": "Вы несовершеннолетний"
+                        }
+                    }
+                ]
+            },
+            "10": {
+                "node_id": 10,
+                "type": "fileanswer",
+                "position": {
+                    "x": 1000,
+                    "y": 1200
+                },
+                "variable": "file_path"
+            },
+            "11": {
+                "node_id": 11,
+                "type": "setmessage",
+                "position": {
+                    "x": 1300,
+                    "y": 1200
+                },
+                "bodies": [
+                    {
+                        "type": "file",
+                        "bodyData": {
+                            "path": "file_path",
+                            "isVariable": true
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "bodyData": {
+                            "text": "Файл получен"
+                        }
+                    }
+                ]
+            },
+            "12": {
+                "node_id": 12,
+                "type": "script",
+                "position": {
+                    "x": 1300,
+                    "y": 1400
+                },
+                "script": "def process_data(data):\n    result = data * 2\n    return result\n\nprocessed = process_data(user_age)",
+                "language": "python"
+            },
+            "13": {
+                "node_id": 13,
+                "type": "script",
+                "position": {
+                    "x": 1600,
+                    "y": 1400
+                },
+                "script": "function calculateTotal(items) {\n    let total = 0;\n    for (let item of items) {\n        total += item.price;\n    }\n    return total;\n}",
+                "language": "javascript"
+            }
+        },
+        "edges": [
+            {
+                "source": 1,
+                "target": 2,
+                "sourceHandle": "bottom-0",
+                "targetHandle": "top-0"
+            },
+            {
+                "source": 2,
+                "target": 3,
+                "sourceHandle": "bottom-0",
+                "targetHandle": "top-0"
+            },
+            {
+                "source": 3,
+                "target": 4,
+                "sourceHandle": "bottom-0",
+                "targetHandle": "top-0"
+            },
+            {
+                "source": 4,
+                "target": 5,
+                "sourceHandle": "bottom-0",
+                "targetHandle": "top-0"
+            },
+            {
+                "source": 5,
+                "target": 6,
+                "sourceHandle": "bottom-0",
+                "targetHandle": "top-0"
+            },
+            {
+                "source": 6,
+                "target": 7,
+                "sourceHandle": "bottom-0",
+                "targetHandle": "top-0"
+            },
+            {
+                "source": 7,
+                "target": 8,
+                "sourceHandle": "bottom-0",
+                "targetHandle": "top-0"
+            },
+            {
+                "source": 7,
+                "target": 9,
+                "sourceHandle": "bottom-1",
+                "targetHandle": "top-0"
+            },
+            {
+                "source": 9,
+                "target": 10,
+                "sourceHandle": "bottom-0",
+                "targetHandle": "top-0"
+            },
+            {
+                "source": 10,
+                "target": 11,
+                "sourceHandle": "bottom-0",
+                "targetHandle": "top-0"
+            },
+            {
+                "source": 11,
+                "target": 12,
+                "sourceHandle": "bottom-0",
+                "targetHandle": "top-0"
+            },
+            {
+                "source": 12,
+                "target": 13,
+                "sourceHandle": "bottom-0",
+                "targetHandle": "top-0"
+            }
+        ]
+    },
+    "bot_id": 1,
+    "bot_name": "Example Chatbot"
+}

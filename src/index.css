@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+/* Утолщаем линии связей React Flow (поверх inline-стилей) */
+.react-flow__edge-path {
+    stroke-width: 6px !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge.react-flow__edge-selected .react-flow__edge-path {
+    stroke-width: 8px !important;
+}
