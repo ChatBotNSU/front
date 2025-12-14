@@ -1,0 +1,1285 @@
+import React, { useState, useCallback, useRef } from "react";
+import "react-flow-renderer/dist/style.css";
+import ReactFlow, {
+    Background,
+    Controls,
+    type Edge,
+    type Node,
+    type OnInit,
+    applyNodeChanges,
+    applyEdgeChanges,
+    addEdge,
+    type NodeChange,
+    type EdgeChange,
+    type Connection,
+} from "react-flow-renderer";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import SetMessageNode, {
+    type SetMessageNodeData,
+} from "../components/Nodes/SetMessageNode";
+import WaitNode, { type WaitNodeData } from "../components/Nodes/WaitNode";
+import SendMessageNode, {
+    type SendMessageNodeData,
+} from "../components/Nodes/SendMessageNode";
+import ConditionNode, {
+    type ConditionNodeData,
+} from "../components/Nodes/ConditionNode";
+import ScriptNode, {
+    type ScriptNodeData,
+} from "../components/Nodes/ScriptNode";
+import SetVarNode, {
+    type SetVarNodeData,
+} from "../components/Nodes/SetVarNode";
+import TextAnswerNode, {
+    type TextAnswerNodeData,
+} from "../components/Nodes/TextAnswerNode";
+import FileAnswerNode, {
+    type FileAnswerNodeData,
+} from "../components/Nodes/FileAnswerNode";
+import NodeBar from "../components/NodeBar/NodeBar";
+import Navbar from "../components/Navbar";
+import VariablesPanel from "../components/VariablesPanel";
+import type { MenuItem } from "../types/menu";
+import type { Chatbot, NodeExport, Variable } from "../types/chatbot";
+
+const nodeTypes = {
+    setmessage: SetMessageNode,
+    wait: WaitNode,
+    sendmessage: SendMessageNode,
+    condition: ConditionNode,
+    script: ScriptNode,
+    setvar: SetVarNode,
+    textanswer: TextAnswerNode,
+    fileanswer: FileAnswerNode,
+} as const;
+
+const Editor: React.FC<{
+    chatbotId?: string;
+    onLogout?: () => void;
+    onBack?: () => void;
+}> = ({
+    chatbotId: _chatbotId = "default", // TODO: Load chatbot data from API based on chatbotId
+    onLogout,
+    onBack,
+}) => {
+    const [nodes, setNodes] = useState<Node[]>([]);
+    const [variables, setVariables] = useState<Variable[]>([]);
+    const [botName, setBotName] = useState<string>("My Chatbot");
+    const [botId, setBotId] = useState<number>(1);
+
+    const [edges, setEdges] = useState<Edge[]>([]);
+    const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+    const reactFlowWrapper = useRef<HTMLDivElement>(null);
+    const reactFlowInstanceRef = useRef<any>(null);
+    const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const onInit: OnInit = useCallback((instance) => {
+        reactFlowInstanceRef.current = instance;
+    }, []);
+
+    const onNodesChange = useCallback((changes: NodeChange[]) => {
+        setNodes((nds) => applyNodeChanges(changes, nds));
+    }, []);
+
+    const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+        setEdges((eds) => applyEdgeChanges(changes, eds));
+    }, []);
+
+    const onConnect = useCallback((connection: Connection) => {
+        setEdges((eds) => addEdge(connection, eds));
+    }, []);
+
+    const onDragOver = useCallback((event: React.DragEvent) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+    }, []);
+
+    const onDrop = useCallback(
+        (event: React.DragEvent) => {
+            event.preventDefault();
+            const data = event.dataTransfer.getData("application/reactflow");
+            if (!data) return;
+            let payload: any;
+            try {
+                payload = JSON.parse(data);
+            } catch {
+                return;
+            }
+
+            const bounds = reactFlowWrapper.current?.getBoundingClientRect();
+            if (!bounds || !reactFlowInstanceRef.current) return;
+            const position = reactFlowInstanceRef.current.project({
+                x: event.clientX - bounds.left,
+                y: event.clientY - bounds.top,
+            });
+
+            // If payload has nodeType only -> create node
+            if (payload.nodeType && !payload.bodyType) {
+                const id = `${Date.now()}`;
+                const nodeType = payload.nodeType as keyof typeof nodeTypes;
+                // Default data per node type
+                let data: any = {};
+                if (nodeType === "setmessage") {
+                    data = {
+                        label: "Set Message",
+                        bodies: [],
+                    } as SetMessageNodeData;
+                } else if (nodeType === "wait") {
+                    data = {
+                        label: "Wait",
+                        delay: 1,
+                    } as WaitNodeData;
+                } else if (nodeType === "sendmessage") {
+                    data = {
+                        label: "Send Message",
+                    } as SendMessageNodeData;
+                } else if (nodeType === "condition") {
+                    data = {
+                        label: "Condition",
+                        branches: [
+                            {
+                                condition: {
+                                    variable: "",
+                                    operator: "==",
+                                    value: "",
+                                },
+                            },
+                        ],
+                    } as ConditionNodeData;
+                } else if (nodeType === "script") {
+                    data = {
+                        label: "Script Node",
+                        script: "",
+                        language: "python",
+                    } as ScriptNodeData;
+                } else if (nodeType === "setvar") {
+                    data = {
+                        label: "Set Var",
+                        assigned_variable: "",
+                        operation: "=",
+                        operand: "",
+                    } as SetVarNodeData;
+                } else if (nodeType === "textanswer") {
+                    data = {
+                        label: "Text Answer",
+                        variable: "",
+                    } as TextAnswerNodeData;
+                } else if (nodeType === "fileanswer") {
+                    data = {
+                        label: "File Answer",
+                        variable: "",
+                    } as FileAnswerNodeData;
+                } else {
+                    return;
+                }
+
+                setNodes((nds) => [
+                    ...nds,
+                    { id, type: nodeType as any, position, data },
+                ]);
+                setActiveNodeId(id);
+                return;
+            }
+
+            // If payload has bodyType -> add body to active setmessage node
+            if (payload.bodyType && activeNodeId) {
+                const bodyType = payload.bodyType as
+                    | "text"
+                    | "image"
+                    | "file"
+                    | "buttons";
+                setNodes((nds) =>
+                    nds.map((node) => {
+                        if (node.id !== activeNodeId) return node;
+                        if (node.type !== "setmessage") return node;
+                        const data = node.data as SetMessageNodeData;
+                        let newBody: any = null;
+                        if (bodyType === "text") {
+                            newBody = { type: "text", bodyData: { text: "" } };
+                        } else if (bodyType === "image") {
+                            newBody = {
+                                type: "image",
+                                bodyData: { url: "", isVariable: false },
+                            };
+                        } else if (bodyType === "file") {
+                            newBody = {
+                                type: "file",
+                                bodyData: { path: "", isVariable: false },
+                            };
+                        } else if (bodyType === "buttons") {
+                            newBody = {
+                                type: "buttons",
+                                bodyData: { buttons: [{ label: "Кнопка 1" }] },
+                            };
+                        }
+                        return {
+                            ...node,
+                            data: {
+                                ...data,
+                                bodies: [...data.bodies, newBody],
+                            },
+                        };
+                    })
+                );
+            }
+        },
+        [activeNodeId]
+    );
+
+    const activeNode = nodes.find((n) => n.id === activeNodeId) || null;
+
+    const exportGraph = useCallback(() => {
+        if (nodes.length === 0) {
+            alert("Нет нод для экспорта");
+            return;
+        }
+
+        const targetIds = new Set(edges.map((e) => e.target));
+        const rootNodes = nodes.filter((n) => !targetIds.has(n.id));
+        const rootId =
+            rootNodes.length > 0
+                ? parseInt(rootNodes[0].id)
+                : parseInt(nodes[0].id);
+
+        const nodesExport: Record<number, NodeExport> = {};
+        nodes.forEach((node) => {
+            const nodeId = parseInt(node.id);
+            const baseData = {
+                node_id: nodeId,
+                type: node.type as NodeExport["type"],
+                position: node.position,
+            };
+
+            switch (node.type) {
+                case "setmessage":
+                    nodesExport[nodeId] = {
+                        ...baseData,
+                        bodies: (node.data as SetMessageNodeData).bodies || [],
+                    } as NodeExport;
+                    break;
+                case "wait":
+                    nodesExport[nodeId] = {
+                        ...baseData,
+                        delay: (node.data as WaitNodeData).delay || 0,
+                    } as NodeExport;
+                    break;
+                case "sendmessage":
+                    nodesExport[nodeId] = baseData as NodeExport;
+                    break;
+                case "condition":
+                    nodesExport[nodeId] = {
+                        ...baseData,
+                        branches:
+                            (node.data as ConditionNodeData).branches || [],
+                    } as NodeExport;
+                    break;
+                case "script":
+                    nodesExport[nodeId] = {
+                        ...baseData,
+                        script: (node.data as ScriptNodeData).script || "",
+                        language:
+                            (node.data as ScriptNodeData).language || "python",
+                    } as NodeExport;
+                    break;
+                case "setvar":
+                    nodesExport[nodeId] = {
+                        ...baseData,
+                        assigned_variable:
+                            (node.data as SetVarNodeData).assigned_variable ||
+                            "",
+                        operation:
+                            (node.data as SetVarNodeData).operation || "=",
+                        operand: (node.data as SetVarNodeData).operand || "",
+                    } as NodeExport;
+                    break;
+                case "textanswer":
+                    nodesExport[nodeId] = {
+                        ...baseData,
+                        variable:
+                            (node.data as TextAnswerNodeData).variable || "",
+                    } as NodeExport;
+                    break;
+                case "fileanswer":
+                    nodesExport[nodeId] = {
+                        ...baseData,
+                        variable:
+                            (node.data as FileAnswerNodeData).variable || "",
+                    } as NodeExport;
+                    break;
+            }
+        });
+
+        const edgesExport = edges.map((edge) => ({
+            source: parseInt(edge.source),
+            target: parseInt(edge.target),
+            sourceHandle: edge.sourceHandle || undefined,
+            targetHandle: edge.targetHandle || undefined,
+        }));
+
+        const graph = {
+            root: rootId,
+            nodes: nodesExport,
+            edges: edgesExport,
+        };
+
+        const chatbot: Chatbot = {
+            variables: variables,
+            graph: graph,
+            bot_id: botId,
+            bot_name: botName,
+        };
+
+        const json = JSON.stringify(chatbot, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${botName.replace(/\s+/g, "_")}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, [nodes, edges, variables, botName, botId]);
+
+    const importGraph = useCallback(() => {
+        fileInputRef.current?.click();
+    }, []);
+
+    const handleFileImport = useCallback(
+        (event: React.ChangeEvent<HTMLInputElement>) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const chatbot: Chatbot = JSON.parse(
+                        e.target?.result as string
+                    );
+
+                    // Восстанавливаем переменные
+                    setVariables(chatbot.variables || []);
+                    setBotName(chatbot.bot_name || "My Chatbot");
+                    setBotId(chatbot.bot_id || 1);
+
+                    // Восстанавливаем граф
+                    const graph = chatbot.graph;
+                    const importedNodes: Node[] = [];
+                    const importedEdges: Edge[] = [];
+
+                    // Преобразуем ноды из формата экспорта в формат React Flow
+                    Object.values(graph.nodes).forEach((nodeExport, index) => {
+                        const nodeId = nodeExport.node_id.toString();
+                        let data: any = {};
+
+                        switch (nodeExport.type) {
+                            case "setmessage":
+                                data = {
+                                    label: "Set Message",
+                                    bodies: nodeExport.bodies || [],
+                                };
+                                break;
+                            case "wait":
+                                data = {
+                                    label: "Wait",
+                                    delay: nodeExport.delay || 0,
+                                };
+                                break;
+                            case "sendmessage":
+                                data = { label: "Send Message" };
+                                break;
+                            case "condition":
+                                data = {
+                                    label: "Condition",
+                                    branches: nodeExport.branches || [],
+                                };
+                                break;
+                            case "script":
+                                data = {
+                                    label: "Script Node",
+                                    script: nodeExport.script || "",
+                                    language: nodeExport.language || "python",
+                                };
+                                break;
+                            case "setvar":
+                                data = {
+                                    label: "Set Var",
+                                    assigned_variable:
+                                        nodeExport.assigned_variable || "",
+                                    operation: nodeExport.operation || "=",
+                                    operand: nodeExport.operand || "",
+                                };
+                                break;
+                            case "textanswer":
+                                data = {
+                                    label: "Text Answer",
+                                    variable: nodeExport.variable || "",
+                                };
+                                break;
+                            case "fileanswer":
+                                data = {
+                                    label: "File Answer",
+                                    variable: nodeExport.variable || "",
+                                };
+                                break;
+                        }
+
+                        importedNodes.push({
+                            id: nodeId,
+                            type: nodeExport.type,
+                            position: nodeExport.position || {
+                                x: (index % 5) * 250,
+                                y: Math.floor(index / 5) * 200,
+                            },
+                            data: data,
+                        });
+                    });
+
+                    // Восстанавливаем связи
+                    if (graph.edges) {
+                        graph.edges.forEach((edgeExport) => {
+                            importedEdges.push({
+                                id: `e${edgeExport.source}-${edgeExport.target}`,
+                                source: edgeExport.source.toString(),
+                                target: edgeExport.target.toString(),
+                                sourceHandle: edgeExport.sourceHandle,
+                                targetHandle: edgeExport.targetHandle,
+                            });
+                        });
+                    }
+
+                    setNodes(importedNodes);
+                    setEdges(importedEdges);
+                    alert("Граф успешно импортирован!");
+                } catch (error) {
+                    alert(
+                        "Ошибка при импорте файла: " + (error as Error).message
+                    );
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = "";
+        },
+        []
+    );
+
+    const menuItems: MenuItem[] = [
+        {
+            label: "Экспорт",
+            type: "button",
+            variant: "secondary",
+            onClick: exportGraph,
+        },
+        {
+            label: "Импорт",
+            type: "button",
+            variant: "secondary",
+            onClick: importGraph,
+        },
+        ...(onBack
+            ? [
+                  {
+                      label: "← Назад",
+                      type: "button" as const,
+                      variant: "secondary" as const,
+                      onClick: onBack,
+                  },
+              ]
+            : []),
+        ...(onLogout
+            ? [
+                  {
+                      label: "Logout",
+                      type: "button" as const,
+                      variant: "secondary" as const,
+                      onClick: onLogout,
+                  },
+              ]
+            : []),
+    ];
+
+    return (
+        <div
+            style={{
+                width: "100%",
+                height: "100vh",
+                display: "flex",
+                flexDirection: "column",
+            }}
+        >
+            <Navbar leftItems={[]} rightItems={menuItems} />
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                style={{ display: "none" }}
+                onChange={handleFileImport}
+            />
+            <div style={{ width: "100%", flex: 1, display: "flex" }}>
+                <NodeBar activeNodeType={(activeNode?.type as any) || null} />
+                <div style={{ flex: 1 }} ref={reactFlowWrapper}>
+                    <ReactFlow
+                        nodes={nodes.map((node) => {
+                            const updateData = (newData: any) =>
+                                setNodes((nds) =>
+                                    nds.map((n) =>
+                                        n.id === node.id
+                                            ? { ...n, data: newData }
+                                            : n
+                                    )
+                                );
+
+                            if (node.type === "setmessage") {
+                                return {
+                                    ...node,
+                                    data: {
+                                        ...node.data,
+                                        onChange: (
+                                            newData: SetMessageNodeData
+                                        ) => updateData(newData),
+                                    },
+                                };
+                            } else if (node.type === "wait") {
+                                return {
+                                    ...node,
+                                    data: {
+                                        ...node.data,
+                                        onChange: (newData: WaitNodeData) =>
+                                            updateData(newData),
+                                    },
+                                };
+                            } else if (node.type === "condition") {
+                                return {
+                                    ...node,
+                                    data: {
+                                        ...node.data,
+                                        onChange: (
+                                            newData: ConditionNodeData
+                                        ) => updateData(newData),
+                                    },
+                                };
+                            } else if (node.type === "script") {
+                                return {
+                                    ...node,
+                                    data: {
+                                        ...node.data,
+                                        onChange: (newData: ScriptNodeData) =>
+                                            updateData(newData),
+                                    },
+                                };
+                            } else if (node.type === "setvar") {
+                                return {
+                                    ...node,
+                                    data: {
+                                        ...node.data,
+                                        onChange: (newData: SetVarNodeData) =>
+                                            updateData(newData),
+                                    },
+                                };
+                            } else if (node.type === "textanswer") {
+                                return {
+                                    ...node,
+                                    data: {
+                                        ...node.data,
+                                        onChange: (
+                                            newData: TextAnswerNodeData
+                                        ) => updateData(newData),
+                                    },
+                                };
+                            } else if (node.type === "fileanswer") {
+                                return {
+                                    ...node,
+                                    data: {
+                                        ...node.data,
+                                        onChange: (
+                                            newData: FileAnswerNodeData
+                                        ) => updateData(newData),
+                                    },
+                                };
+                            }
+                            return node;
+                        })}
+                        edges={edges}
+                        nodeTypes={nodeTypes}
+                        fitView
+                        onInit={onInit}
+                        onDrop={onDrop}
+                        onDragOver={onDragOver}
+                        onNodeClick={(_, n) => setActiveNodeId(n.id)}
+                        onEdgeClick={(_, e) => {
+                            if (selectedEdgeId === e.id) {
+                                setEdges((cur) =>
+                                    cur.filter((ed) => ed.id !== e.id)
+                                );
+                                setSelectedEdgeId(null);
+                            } else {
+                                setSelectedEdgeId(e.id);
+                            }
+                        }}
+                        onPaneClick={() => setSelectedEdgeId(null)}
+                        nodesDraggable={true}
+                        nodesConnectable={true}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
+                        onConnect={onConnect}
+                    >
+                        <Background />
+                        <Controls />
+                    </ReactFlow>
+                </div>
+                <div
+                    style={{
+                        width: 280,
+                        borderLeft: "1px solid #e5e7eb",
+                        padding: 12,
+                        overflowY: "auto",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 16,
+                    }}
+                >
+                    <VariablesPanel
+                        variables={variables}
+                        onVariablesChange={setVariables}
+                    />
+                    <div
+                        style={{
+                            borderTop: "1px solid #e5e7eb",
+                            paddingTop: 12,
+                        }}
+                    >
+                        <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                            Параметры ноды
+                        </div>
+                        {!activeNode && (
+                            <div style={{ fontSize: 12, color: "#6b7280" }}>
+                                Выберите ноду на канвасе
+                            </div>
+                        )}
+                        {activeNode?.type === "wait" && (
+                            <div
+                                style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 8,
+                                }}
+                            >
+                                <label style={{ fontSize: 12 }}>
+                                    Задержка (сек)
+                                </label>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        gap: 4,
+                                        alignItems: "center",
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const current =
+                                                (
+                                                    activeNode.data as WaitNodeData
+                                                ).delay || 0;
+                                            const newValue = Math.max(
+                                                0,
+                                                current - 0.1
+                                            );
+                                            setNodes((nds) =>
+                                                nds.map((n) =>
+                                                    n.id === activeNode.id
+                                                        ? {
+                                                              ...n,
+                                                              data: {
+                                                                  ...(n.data as WaitNodeData),
+                                                                  delay:
+                                                                      Math.round(
+                                                                          newValue *
+                                                                              10
+                                                                      ) / 10,
+                                                              },
+                                                          }
+                                                        : n
+                                                )
+                                            );
+                                        }}
+                                        style={{
+                                            padding: "6px 12px",
+                                            border: "1px solid #e5e7eb",
+                                            borderRadius: 6,
+                                            background: "#f9fafb",
+                                            cursor: "pointer",
+                                            fontSize: 16,
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        −
+                                    </button>
+                                    <input
+                                        type="text"
+                                        value={
+                                            (activeNode.data as WaitNodeData)
+                                                .delay
+                                        }
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            const num = parseFloat(val);
+                                            if (
+                                                val === "" ||
+                                                (!isNaN(num) && num >= 0)
+                                            ) {
+                                                setNodes((nds) =>
+                                                    nds.map((n) =>
+                                                        n.id === activeNode.id
+                                                            ? {
+                                                                  ...n,
+                                                                  data: {
+                                                                      ...(n.data as WaitNodeData),
+                                                                      delay:
+                                                                          val ===
+                                                                          ""
+                                                                              ? 0
+                                                                              : num,
+                                                                  },
+                                                              }
+                                                            : n
+                                                    )
+                                                );
+                                            }
+                                        }}
+                                        onBlur={(e) => {
+                                            const val = e.target.value;
+                                            const num = parseFloat(val);
+                                            if (isNaN(num) || num < 0) {
+                                                setNodes((nds) =>
+                                                    nds.map((n) =>
+                                                        n.id === activeNode.id
+                                                            ? {
+                                                                  ...n,
+                                                                  data: {
+                                                                      ...(n.data as WaitNodeData),
+                                                                      delay: 0,
+                                                                  },
+                                                              }
+                                                            : n
+                                                    )
+                                                );
+                                            }
+                                        }}
+                                        style={{
+                                            flex: 1,
+                                            padding: 6,
+                                            border: "1px solid #e5e7eb",
+                                            borderRadius: 6,
+                                            textAlign: "center",
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const current =
+                                                (
+                                                    activeNode.data as WaitNodeData
+                                                ).delay || 0;
+                                            const newValue = current + 0.1;
+                                            setNodes((nds) =>
+                                                nds.map((n) =>
+                                                    n.id === activeNode.id
+                                                        ? {
+                                                              ...n,
+                                                              data: {
+                                                                  ...(n.data as WaitNodeData),
+                                                                  delay:
+                                                                      Math.round(
+                                                                          newValue *
+                                                                              10
+                                                                      ) / 10,
+                                                              },
+                                                          }
+                                                        : n
+                                                )
+                                            );
+                                        }}
+                                        style={{
+                                            padding: "6px 12px",
+                                            border: "1px solid #e5e7eb",
+                                            borderRadius: 6,
+                                            background: "#f9fafb",
+                                            cursor: "pointer",
+                                            fontSize: 16,
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        {activeNode?.type === "condition" && (
+                            <div
+                                style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 8,
+                                }}
+                            >
+                                <label style={{ fontSize: 12 }}>
+                                    Количество веток
+                                </label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    value={
+                                        (activeNode.data as ConditionNodeData)
+                                            .branches.length
+                                    }
+                                    onChange={(e) => {
+                                        const nextCount = Math.max(
+                                            1,
+                                            parseInt(e.target.value || "1", 10)
+                                        );
+                                        setNodes((nds) =>
+                                            nds.map((n) => {
+                                                if (n.id !== activeNode.id)
+                                                    return n;
+                                                const data =
+                                                    n.data as ConditionNodeData;
+                                                const current =
+                                                    data.branches || [];
+                                                const next = current.slice(
+                                                    0,
+                                                    nextCount
+                                                );
+                                                while (
+                                                    next.length < nextCount
+                                                ) {
+                                                    next.push({
+                                                        condition: {
+                                                            variable: "",
+                                                            operator: "==",
+                                                            value: "",
+                                                        },
+                                                    });
+                                                }
+                                                return {
+                                                    ...n,
+                                                    data: {
+                                                        ...data,
+                                                        branches: next,
+                                                    },
+                                                };
+                                            })
+                                        );
+                                    }}
+                                    style={{
+                                        padding: 6,
+                                        border: "1px solid #e5e7eb",
+                                        borderRadius: 6,
+                                    }}
+                                />
+                            </div>
+                        )}
+                        {activeNode?.type === "script" && (
+                            <div
+                                style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 8,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 6,
+                                    }}
+                                >
+                                    <label style={{ fontSize: 12 }}>Язык</label>
+                                    <select
+                                        value={
+                                            (activeNode.data as ScriptNodeData)
+                                                .language
+                                        }
+                                        onChange={(e) => {
+                                            const language = e.target.value as
+                                                | "python"
+                                                | "javascript";
+                                            setNodes((nds) =>
+                                                nds.map((n) =>
+                                                    n.id === activeNode.id
+                                                        ? {
+                                                              ...n,
+                                                              data: {
+                                                                  ...(n.data as ScriptNodeData),
+                                                                  language,
+                                                              },
+                                                          }
+                                                        : n
+                                                )
+                                            );
+                                        }}
+                                        style={{
+                                            padding: 6,
+                                            border: "1px solid #e5e7eb",
+                                            borderRadius: 6,
+                                        }}
+                                    >
+                                        <option value="python">Python</option>
+                                        <option value="javascript">
+                                            JavaScript
+                                        </option>
+                                    </select>
+                                </div>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 6,
+                                    }}
+                                >
+                                    <label style={{ fontSize: 12 }}>
+                                        Загрузить файл
+                                    </label>
+                                    <input
+                                        type="file"
+                                        accept=".py,.js,.pyw,.jsx,.ts,.tsx"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+
+                                            const fileName =
+                                                file.name.toLowerCase();
+                                            const extension =
+                                                fileName.substring(
+                                                    fileName.lastIndexOf(".")
+                                                );
+
+                                            // Проверка формата
+                                            const pythonExtensions = [
+                                                ".py",
+                                                ".pyw",
+                                            ];
+                                            const jsExtensions = [
+                                                ".js",
+                                                ".jsx",
+                                                ".ts",
+                                                ".tsx",
+                                            ];
+
+                                            let detectedLanguage:
+                                                | "python"
+                                                | "javascript"
+                                                | null = null;
+
+                                            if (
+                                                pythonExtensions.includes(
+                                                    extension
+                                                )
+                                            ) {
+                                                detectedLanguage = "python";
+                                            } else if (
+                                                jsExtensions.includes(extension)
+                                            ) {
+                                                detectedLanguage = "javascript";
+                                            } else {
+                                                alert(
+                                                    `Неподдерживаемый формат файла: ${extension}\nПоддерживаются: .py, .pyw, .js, .jsx, .ts, .tsx`
+                                                );
+                                                return;
+                                            }
+
+                                            const reader = new FileReader();
+                                            reader.onload = (event) => {
+                                                const content = event.target
+                                                    ?.result as string;
+                                                setNodes((nds) =>
+                                                    nds.map((n) =>
+                                                        n.id === activeNode.id
+                                                            ? {
+                                                                  ...n,
+                                                                  data: {
+                                                                      ...(n.data as ScriptNodeData),
+                                                                      script: content,
+                                                                      language:
+                                                                          detectedLanguage!,
+                                                                  },
+                                                              }
+                                                            : n
+                                                    )
+                                                );
+                                            };
+                                            reader.onerror = () => {
+                                                alert(
+                                                    "Ошибка при чтении файла"
+                                                );
+                                            };
+                                            reader.readAsText(file);
+
+                                            // Сброс input для возможности повторной загрузки того же файла
+                                            e.target.value = "";
+                                        }}
+                                        style={{
+                                            padding: 6,
+                                            border: "1px solid #e5e7eb",
+                                            borderRadius: 6,
+                                        }}
+                                    />
+                                    <div
+                                        style={{
+                                            fontSize: 11,
+                                            color: "#6b7280",
+                                        }}
+                                    >
+                                        Поддерживаются: .py, .pyw, .js, .jsx,
+                                        .ts, .tsx
+                                    </div>
+                                </div>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 6,
+                                    }}
+                                >
+                                    <label style={{ fontSize: 12 }}>
+                                        Скрипт
+                                    </label>
+                                    <div
+                                        style={{
+                                            position: "relative",
+                                            border: "1px solid #e5e7eb",
+                                            borderRadius: 6,
+                                            overflow: "hidden",
+                                            background: "#1e1e1e",
+                                        }}
+                                    >
+                                        <div
+                                            id={`syntax-${activeNode.id}`}
+                                            style={{
+                                                position: "absolute",
+                                                top: 0,
+                                                left: 0,
+                                                right: 0,
+                                                bottom: 0,
+                                                pointerEvents: "none",
+                                                padding: 12,
+                                                overflow: "hidden",
+                                                boxSizing: "border-box",
+                                            }}
+                                        >
+                                            <SyntaxHighlighter
+                                                language={
+                                                    (
+                                                        activeNode.data as ScriptNodeData
+                                                    ).language
+                                                }
+                                                style={vscDarkPlus}
+                                                customStyle={{
+                                                    margin: 0,
+                                                    padding: 0,
+                                                    background: "transparent",
+                                                    fontSize: "13px",
+                                                    fontFamily: "monospace",
+                                                    lineHeight: "1.5",
+                                                }}
+                                                codeTagProps={{
+                                                    style: {
+                                                        fontFamily: "monospace",
+                                                        fontSize: "13px",
+                                                        lineHeight: "1.5",
+                                                    },
+                                                }}
+                                                PreTag="div"
+                                            >
+                                                {(
+                                                    activeNode.data as ScriptNodeData
+                                                ).script || " "}
+                                            </SyntaxHighlighter>
+                                        </div>
+                                        <textarea
+                                            id={`textarea-${activeNode.id}`}
+                                            value={
+                                                (
+                                                    activeNode.data as ScriptNodeData
+                                                ).script
+                                            }
+                                            onChange={(e) => {
+                                                const script = e.target.value;
+                                                setNodes((nds) =>
+                                                    nds.map((n) =>
+                                                        n.id === activeNode.id
+                                                            ? {
+                                                                  ...n,
+                                                                  data: {
+                                                                      ...(n.data as ScriptNodeData),
+                                                                      script,
+                                                                  },
+                                                              }
+                                                            : n
+                                                    )
+                                                );
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Tab") {
+                                                    e.preventDefault();
+                                                    const textarea =
+                                                        e.currentTarget;
+                                                    const start =
+                                                        textarea.selectionStart;
+                                                    const end =
+                                                        textarea.selectionEnd;
+                                                    const value =
+                                                        textarea.value;
+                                                    const tab = "    "; // 4 пробела
+
+                                                    if (e.shiftKey) {
+                                                        // Shift+Tab - удалить табуляцию
+                                                        const beforeStart =
+                                                            value.substring(
+                                                                0,
+                                                                start
+                                                            );
+                                                        const lineStart =
+                                                            beforeStart.lastIndexOf(
+                                                                "\n"
+                                                            ) + 1;
+                                                        const lineBefore =
+                                                            value.substring(
+                                                                lineStart,
+                                                                start
+                                                            );
+
+                                                        if (
+                                                            lineBefore.startsWith(
+                                                                "    "
+                                                            )
+                                                        ) {
+                                                            const newValue =
+                                                                value.substring(
+                                                                    0,
+                                                                    lineStart
+                                                                ) +
+                                                                lineBefore.substring(
+                                                                    4
+                                                                ) +
+                                                                value.substring(
+                                                                    start
+                                                                );
+                                                            const newStart =
+                                                                Math.max(
+                                                                    lineStart,
+                                                                    start - 4
+                                                                );
+                                                            const newEnd =
+                                                                Math.max(
+                                                                    lineStart,
+                                                                    end - 4
+                                                                );
+                                                            setNodes((nds) =>
+                                                                nds.map((n) =>
+                                                                    n.id ===
+                                                                    activeNode.id
+                                                                        ? {
+                                                                              ...n,
+                                                                              data: {
+                                                                                  ...(n.data as ScriptNodeData),
+                                                                                  script: newValue,
+                                                                              },
+                                                                          }
+                                                                        : n
+                                                                )
+                                                            );
+                                                            setTimeout(() => {
+                                                                textarea.setSelectionRange(
+                                                                    newStart,
+                                                                    newEnd
+                                                                );
+                                                            }, 0);
+                                                        }
+                                                    } else {
+                                                        // Tab - вставить табуляцию
+                                                        const newValue =
+                                                            value.substring(
+                                                                0,
+                                                                start
+                                                            ) +
+                                                            tab +
+                                                            value.substring(
+                                                                end
+                                                            );
+                                                        const newStart =
+                                                            start + tab.length;
+                                                        const newEnd = newStart;
+                                                        setNodes((nds) =>
+                                                            nds.map((n) =>
+                                                                n.id ===
+                                                                activeNode.id
+                                                                    ? {
+                                                                          ...n,
+                                                                          data: {
+                                                                              ...(n.data as ScriptNodeData),
+                                                                              script: newValue,
+                                                                          },
+                                                                      }
+                                                                    : n
+                                                            )
+                                                        );
+                                                        setTimeout(() => {
+                                                            textarea.setSelectionRange(
+                                                                newStart,
+                                                                newEnd
+                                                            );
+                                                        }, 0);
+                                                    }
+                                                }
+                                            }}
+                                            onScroll={(e) => {
+                                                const syntaxDiv =
+                                                    document.getElementById(
+                                                        `syntax-${activeNode.id}`
+                                                    );
+                                                if (syntaxDiv) {
+                                                    syntaxDiv.scrollTop =
+                                                        e.currentTarget.scrollTop;
+                                                    syntaxDiv.scrollLeft =
+                                                        e.currentTarget.scrollLeft;
+                                                }
+                                            }}
+                                            placeholder="Введите скрипт..."
+                                            spellCheck={false}
+                                            style={{
+                                                position: "relative",
+                                                zIndex: 1,
+                                                width: "100%",
+                                                minHeight: 300,
+                                                padding: 12,
+                                                border: "none",
+                                                fontFamily: "monospace",
+                                                fontSize: 13,
+                                                lineHeight: "1.5",
+                                                background: "transparent",
+                                                color: "transparent",
+                                                caretColor: "#d4d4d4",
+                                                resize: "vertical",
+                                                outline: "none",
+                                                boxSizing: "border-box",
+                                                tabSize: 4,
+                                                whiteSpace: "pre",
+                                                overflowWrap: "normal",
+                                                wordWrap: "normal",
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default Editor;

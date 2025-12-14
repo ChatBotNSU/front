@@ -1,4 +1,3 @@
-import React from "react";
 import { getBezierPath, type EdgeProps } from "react-flow-renderer";
 
 type DeletableEdgeData = {
@@ -6,7 +5,19 @@ type DeletableEdgeData = {
 };
 
 const DeletableEdge = (props: EdgeProps<DeletableEdgeData>) => {
-    const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, selected, style, data } = props;
+    const {
+        id,
+        sourceX,
+        sourceY,
+        targetX,
+        targetY,
+        sourcePosition,
+        targetPosition,
+        markerEnd,
+        selected,
+        style,
+        data,
+    } = props;
 
     const [edgePath, labelX, labelY] = getBezierPath({
         sourceX,
@@ -25,7 +36,9 @@ const DeletableEdge = (props: EdgeProps<DeletableEdgeData>) => {
                 d={edgePath}
                 markerEnd={markerEnd as any}
                 style={{
-                    stroke: selected ? "#2563eb" : (style as any)?.stroke || "#94a3b8",
+                    stroke: selected
+                        ? "#2563eb"
+                        : (style as any)?.stroke || "#94a3b8",
                     strokeWidth: selected ? 2.5 : 2,
                     fill: "none",
                     ...style,
@@ -33,7 +46,13 @@ const DeletableEdge = (props: EdgeProps<DeletableEdgeData>) => {
             />
             {selected && (
                 <g transform={`translate(${labelX}, ${labelY})`}>
-                    <foreignObject x={-12} y={-12} width={24} height={24} requiredExtensions="http://www.w3.org/1999/xhtml">
+                    <foreignObject
+                        x={-12}
+                        y={-12}
+                        width={24}
+                        height={24}
+                        requiredExtensions="http://www.w3.org/1999/xhtml"
+                    >
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -63,5 +82,3 @@ const DeletableEdge = (props: EdgeProps<DeletableEdgeData>) => {
 };
 
 export default DeletableEdge;
-
-

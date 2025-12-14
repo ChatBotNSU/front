@@ -1,6 +1,13 @@
+import React, { useState } from "react";
 import type { AuthModalProps } from "../types/modals";
 
-export default function AuthModal({ mode, onClose }: AuthModalProps) {
+export default function AuthModal({
+    mode,
+    onClose,
+    onSuccess,
+}: AuthModalProps) {
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const form = e.currentTarget;
@@ -37,11 +44,42 @@ export default function AuthModal({ mode, onClose }: AuthModalProps) {
                 username: username.value,
                 password: password.value,
             });
+            alert("Sign up is not implemented yet.");
         } else {
-            console.log("Login submitted", {
-                email: email.value,
-                password: password.value,
-            });
+            // Call backend token endpoint
+            setLoading(true);
+            setError(null);
+            const fd = new FormData();
+            fd.append("username", email.value);
+            fd.append("password", password.value);
+
+            fetch("/api/v1/auth/token", {
+                method: "POST",
+                // Note: do not set Content-Type header; browser will set multipart/form-data boundary
+                body: fd,
+            })
+                .then(async (res) => {
+                    const json = await res.json();
+                    if (!res.ok) {
+                        throw new Error(
+                            json?.detail || json?.message || "Login failed"
+                        );
+                    }
+                    return json;
+                })
+                .then((data) => {
+                    // data: { access_token, token_type }
+                    onSuccess?.({
+                        user: { email: email.value },
+                        access_token: data.access_token,
+                        token_type: data.token_type,
+                    });
+                    onClose();
+                })
+                .catch((err: any) => {
+                    setError(err?.message || String(err));
+                })
+                .finally(() => setLoading(false));
         }
     };
 
@@ -127,11 +165,20 @@ export default function AuthModal({ mode, onClose }: AuthModalProps) {
 
                     <button
                         type="submit"
-                        className="bg-blue-500 text-white p-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors"
+                        disabled={loading}
+                        className="bg-blue-500 text-white p-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
                     >
-                        {mode === "signup" ? "Sign Up" : "Log In"}
+                        {loading
+                            ? "Please wait..."
+                            : mode === "signup"
+                            ? "Sign Up"
+                            : "Log In"}
                     </button>
                 </form>
+
+                {error && (
+                    <div className="text-red-500 mt-3 text-sm">{error}</div>
+                )}
 
                 <div className="flex items-center my-4">
                     <hr className="flex-1 border-gray-300" />

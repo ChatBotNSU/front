@@ -5,7 +5,11 @@ import OverlayText from "../components/OverlayText";
 import OverlayButton from "../components/OverlayButton";
 import type { MenuItem } from "../types/menu";
 
-export default function Greetings() {
+export default function Greetings({
+    onOpenAuth,
+}: {
+    onOpenAuth?: (mode: "login" | "signup") => void;
+}) {
     const rows = 10;
     const cols = 16;
     const [hovered, setHovered] = useState<number | null>(null);
@@ -17,8 +21,18 @@ export default function Greetings() {
 
     const rightMenu: MenuItem[] = [
         { label: "Contact", href: "#", type: "link" },
-        { label: "Log in", type: "button", variant: "secondary" },
-        { label: "Sign up", type: "button", variant: "primary" },
+        {
+            label: "Log in",
+            type: "button",
+            variant: "secondary",
+            onClick: () => onOpenAuth?.("login"),
+        },
+        {
+            label: "Sign up",
+            type: "button",
+            variant: "primary",
+            onClick: () => onOpenAuth?.("signup"),
+        },
     ];
 
     return (
@@ -35,7 +49,7 @@ export default function Greetings() {
                     <OverlayText text="ChatBotEditor" />
                     <OverlayButton
                         label="Начнём!"
-                        onClick={() => alert("Кнопка нажата!")}
+                        onClick={() => onOpenAuth?.("login")}
                     />
                 </div>
             </div>
