@@ -343,6 +343,7 @@ const Editor: React.FC<{
         URL.revokeObjectURL(url);
     }, [nodes, edges, variables, botName, botId]);
 
+    // Импорт графа из JSON
     const importGraph = useCallback(() => {
         fileInputRef.current?.click();
     }, []);

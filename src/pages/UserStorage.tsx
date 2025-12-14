@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 
@@ -14,26 +14,10 @@ const UserStorage: React.FC<{
     onLogout: () => void;
 }> = ({ onSelectChatbot, onLogout }) => {
     const user = useSelector((s: RootState) => s.auth.user);
-    const [chatbots, setChatbots] = useState<Chatbot[]>([
-        {
-            id: "bot-1",
-            name: "Support Bot",
-            description: "Customer support chatbot",
-            createdAt: "2024-12-10",
-        },
-        {
-            id: "bot-2",
-            name: "FAQ Assistant",
-            description: "Frequently asked questions bot",
-            createdAt: "2024-12-11",
-        },
-        {
-            id: "bot-3",
-            name: "Sales Bot",
-            description: "Sales and lead generation bot",
-            createdAt: "2024-12-12",
-        },
-    ]);
+    const token = useSelector((s: RootState) => s.auth.access_token);
+    const [chatbots, setChatbots] = useState<Chatbot[]>([]);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [error, setError] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newBotName, setNewBotName] = useState("");
 
@@ -53,6 +37,53 @@ const UserStorage: React.FC<{
     const handleDeleteChatbot = (id: string) => {
         setChatbots(chatbots.filter((bot) => bot.id !== id));
     };
+    const loadChatbots = async () => {
+        setLoading(true);
+        setError(null);
+        if (!token) {
+            setError("Missing auth token");
+            setLoading(false);
+            return;
+        }
+        try {
+            const res = await fetch("/api/v1/chatbot/chatbots", {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            const json = await res.json();
+            if (!res.ok) {
+                throw new Error(
+                    json?.detail || json?.message || "Failed to load chatbots"
+                );
+            }
+
+            // Normalize to our Chatbot type
+            const items: any[] = Array.isArray(json)
+                ? json
+                : json?.chatbots ?? json?.items ?? [];
+            const normalized: Chatbot[] = items.map((b) => ({
+                id: String(b.id ?? b._id ?? b.bot_id ?? ""),
+                name: b.name ?? b.title ?? "Untitled",
+                description: b.description ?? b.summary ?? "",
+                createdAt:
+                    b.created_at ??
+                    b.createdAt ??
+                    (new Date().toISOString().split("T")[0] as string),
+            }));
+            setChatbots(normalized);
+        } catch (err: any) {
+            setError(err?.message || String(err));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadChatbots();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token]);
 
     return (
         <div
@@ -138,6 +169,32 @@ const UserStorage: React.FC<{
                     + Create New Chatbot
                 </button>
             </div>
+
+            {loading && (
+                <div style={{ color: "white", marginBottom: 20 }}>
+                    Loading chatbots...
+                </div>
+            )}
+
+            {error && (
+                <div style={{ color: "#ffdddd", marginBottom: 20 }}>
+                    <div>Error: {error}</div>
+                    <button
+                        onClick={() => loadChatbots()}
+                        style={{
+                            marginTop: 8,
+                            padding: "8px 12px",
+                            background: "white",
+                            color: "#667eea",
+                            borderRadius: 6,
+                            border: "none",
+                            cursor: "pointer",
+                        }}
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
 
             <div
                 style={{
