@@ -42,7 +42,9 @@ const UserStorage: React.FC<{
                     name: b.bot_name ?? b.name ?? newBotName,
                     description: b.description ?? "",
                     createdAt:
-                        b.created_at ?? b.createdAt ?? new Date().toISOString().split("T")[0],
+                        b.created_at ??
+                        b.createdAt ??
+                        new Date().toISOString().split("T")[0],
                 };
                 setChatbots((cur) => [normalized, ...cur]);
                 setNewBotName("");
@@ -50,7 +52,10 @@ const UserStorage: React.FC<{
                 // open editor for created bot
                 onSelectChatbot(normalized.id);
             } catch (err: any) {
-                alert("Ошибка при создании чатбота: " + (err?.message ?? String(err)));
+                alert(
+                    "Ошибка при создании чатбота: " +
+                        (err?.message ?? String(err))
+                );
             } finally {
                 setLoading(false);
             }
@@ -86,7 +91,9 @@ const UserStorage: React.FC<{
             setChatbots((cur) => cur.filter((bot) => bot.id !== id));
             alert("Чатбот удалён");
         } catch (err: any) {
-            alert("Ошибка при удалении чатбота: " + (err?.message ?? String(err)));
+            alert(
+                "Ошибка при удалении чатбота: " + (err?.message ?? String(err))
+            );
         } finally {
             setLoading(false);
         }

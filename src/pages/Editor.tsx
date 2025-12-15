@@ -975,14 +975,22 @@ const Editor: React.FC<{
                     alert("Нет выбранного чатбота для удаления");
                     return;
                 }
-                if (!confirm("Вы уверены, что хотите удалить этот чатбот? Это действие необратимо.")) return;
+                if (
+                    !confirm(
+                        "Вы уверены, что хотите удалить этот чатбот? Это действие необратимо."
+                    )
+                )
+                    return;
                 try {
                     await deleteChatbot(_chatbotId, token);
                     alert("Чатбот успешно удалён");
                     if (onBack) onBack();
                     else window.location.href = "/";
                 } catch (err: any) {
-                    alert("Ошибка при удалении чатбота: " + (err?.message ?? String(err)));
+                    alert(
+                        "Ошибка при удалении чатбота: " +
+                            (err?.message ?? String(err))
+                    );
                 }
             },
         },
