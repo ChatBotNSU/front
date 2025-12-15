@@ -44,6 +44,7 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import parseBackendChatbot from "../utils/parseBackendChatbot";
 import serializeToBackendChatbot from "../utils/serializeToBackendChatbot";
+import { deleteChatbot } from "../utils/chatbotApi";
 import type { MenuItem } from "../types/menu";
 import type { Chatbot, NodeExport, Variable } from "../types/chatbot";
 
@@ -964,6 +965,26 @@ const Editor: React.FC<{
             type: "button",
             variant: "secondary",
             onClick: saveChatbot,
+        },
+        {
+            label: "Удалить",
+            type: "button",
+            variant: "danger",
+            onClick: async () => {
+                if (!_chatbotId || _chatbotId === "default") {
+                    alert("Нет выбранного чатбота для удаления");
+                    return;
+                }
+                if (!confirm("Вы уверены, что хотите удалить этот чатбот? Это действие необратимо.")) return;
+                try {
+                    await deleteChatbot(_chatbotId, token);
+                    alert("Чатбот успешно удалён");
+                    if (onBack) onBack();
+                    else window.location.href = "/";
+                } catch (err: any) {
+                    alert("Ошибка при удалении чатбота: " + (err?.message ?? String(err)));
+                }
+            },
         },
     ];
 

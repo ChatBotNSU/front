@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { deleteChatbot, createChatbot } from "../utils/chatbotApi";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 
@@ -21,21 +22,74 @@ const UserStorage: React.FC<{
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newBotName, setNewBotName] = useState("");
 
-    const handleCreateChatbot = () => {
-        if (newBotName.trim()) {
+    const handleCreateChatbot = async () => {
+        if (!newBotName.trim()) return;
+
+        // If we have an auth token, create via API; otherwise create locally
+        if (token) {
+            setLoading(true);
+            try {
+                const payload = {
+                    variables: [],
+                    graph: { root: "", nodes: {}, edges: [] },
+                    bot_name: newBotName,
+                };
+                const res = await createChatbot(payload, token);
+                // normalize returned item similar to loadChatbots
+                const b = res?.chatbot ?? res ?? {};
+                const normalized: Chatbot = {
+                    id: String(b.id ?? b._id ?? b.bot_id ?? ""),
+                    name: b.bot_name ?? b.name ?? newBotName,
+                    description: b.description ?? "",
+                    createdAt:
+                        b.created_at ?? b.createdAt ?? new Date().toISOString().split("T")[0],
+                };
+                setChatbots((cur) => [normalized, ...cur]);
+                setNewBotName("");
+                setShowCreateModal(false);
+                // open editor for created bot
+                onSelectChatbot(normalized.id);
+            } catch (err: any) {
+                alert("Ошибка при создании чатбота: " + (err?.message ?? String(err)));
+            } finally {
+                setLoading(false);
+            }
+        } else {
             const newBot: Chatbot = {
                 id: `bot-${Date.now()}`,
                 name: newBotName,
                 createdAt: new Date().toISOString().split("T")[0],
             };
-            setChatbots([newBot, ...chatbots]);
+            setChatbots((cur) => [newBot, ...cur]);
             setNewBotName("");
             setShowCreateModal(false);
         }
     };
 
-    const handleDeleteChatbot = (id: string) => {
-        setChatbots(chatbots.filter((bot) => bot.id !== id));
+    const handleDeleteChatbot = async (id: string) => {
+        // if this is a local-only (not-yet-saved) bot id, just remove it locally
+        if (id.startsWith("bot-")) {
+            setChatbots((cur) => cur.filter((bot) => bot.id !== id));
+            return;
+        }
+
+        if (!confirm("Вы уверены, что хотите удалить этот чатбот?")) return;
+        if (!token) {
+            alert("Missing auth token");
+            return;
+        }
+
+        try {
+            setLoading(true);
+            await deleteChatbot(id, token);
+            // remove from UI list
+            setChatbots((cur) => cur.filter((bot) => bot.id !== id));
+            alert("Чатбот удалён");
+        } catch (err: any) {
+            alert("Ошибка при удалении чатбота: " + (err?.message ?? String(err)));
+        } finally {
+            setLoading(false);
+        }
     };
     const loadChatbots = async () => {
         setLoading(true);
