@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import "react-flow-renderer/dist/style.css";
 import ReactFlow, {
     Background,
@@ -40,6 +40,10 @@ import FileAnswerNode, {
 import NodeBar from "../components/NodeBar/NodeBar";
 import Navbar from "../components/Navbar";
 import VariablesPanel from "../components/VariablesPanel";
+import { useSelector } from "react-redux";
+import type { RootState } from "../store";
+import parseBackendChatbot from "../utils/parseBackendChatbot";
+import serializeToBackendChatbot from "../utils/serializeToBackendChatbot";
 import type { MenuItem } from "../types/menu";
 import type { Chatbot, NodeExport, Variable } from "../types/chatbot";
 
@@ -63,6 +67,8 @@ const Editor: React.FC<{
     onLogout,
     onBack,
 }) => {
+    // mark onLogout as used to avoid TS6133 when it's not needed here
+    void onLogout;
     const [nodes, setNodes] = useState<Node[]>([]);
     const [variables, setVariables] = useState<Variable[]>([]);
     const [botName, setBotName] = useState<string>("My Chatbot");
@@ -89,6 +95,32 @@ const Editor: React.FC<{
 
     const onConnect = useCallback((connection: Connection) => {
         setEdges((eds) => addEdge(connection, eds));
+        // When a connection is created, immediately set the source node's next_node_id
+        // (or default_next_node_id for condition nodes) so serializer has explicit value.
+        const { source, target } = connection;
+        if (!source || !target) return;
+        setNodes((nds) =>
+            nds.map((n) => {
+                if (n.id !== source) return n;
+                const data: any = { ...(n.data || {}) };
+                if (n.type === "condition") {
+                    return {
+                        ...n,
+                        data: {
+                            ...data,
+                            default_next_node_id: String(target),
+                        },
+                    };
+                }
+                return {
+                    ...n,
+                    data: {
+                        ...data,
+                        next_node_id: String(target),
+                    },
+                };
+            })
+        );
     }, []);
 
     const onDragOver = useCallback((event: React.DragEvent) => {
@@ -125,15 +157,24 @@ const Editor: React.FC<{
                     data = {
                         label: "Set Message",
                         bodies: [],
+                        // ensure backend-required fields exist
+                        text: "",
+                        audios: [],
+                        images: [],
+                        files: [],
+                        choise_options: [],
+                        next_node_id: "",
                     } as SetMessageNodeData;
                 } else if (nodeType === "wait") {
                     data = {
                         label: "Wait",
                         delay: 1,
+                        next_node_id: "",
                     } as WaitNodeData;
                 } else if (nodeType === "sendmessage") {
                     data = {
                         label: "Send Message",
+                        next_node_id: "",
                     } as SendMessageNodeData;
                 } else if (nodeType === "condition") {
                     data = {
@@ -141,18 +182,21 @@ const Editor: React.FC<{
                         branches: [
                             {
                                 condition: {
-                                    variable: "",
-                                    operator: "==",
-                                    value: "",
+                                    variable_left: "",
+                                    operation: "==",
+                                    variable_right: "",
                                 },
+                                next_node_id: "",
                             },
                         ],
+                        default_next_node_id: "",
                     } as ConditionNodeData;
                 } else if (nodeType === "script") {
                     data = {
                         label: "Script Node",
                         script: "",
                         language: "python",
+                        next_node_id: "",
                     } as ScriptNodeData;
                 } else if (nodeType === "setvar") {
                     data = {
@@ -160,16 +204,19 @@ const Editor: React.FC<{
                         assigned_variable: "",
                         operation: "=",
                         operand: "",
+                        next_node_id: "",
                     } as SetVarNodeData;
                 } else if (nodeType === "textanswer") {
                     data = {
                         label: "Text Answer",
                         variable: "",
+                        next_node_id: "",
                     } as TextAnswerNodeData;
                 } else if (nodeType === "fileanswer") {
                     data = {
                         label: "File Answer",
                         variable: "",
+                        next_node_id: "",
                     } as FileAnswerNodeData;
                 } else {
                     return;
@@ -348,6 +395,278 @@ const Editor: React.FC<{
         fileInputRef.current?.click();
     }, []);
 
+    // Load chatbot from backend when `chatbotId` changes
+    const token = useSelector((s: RootState) => s.auth.access_token);
+    useEffect(() => {
+        let mounted = true;
+        const load = async () => {
+            if (!_chatbotId === undefined || _chatbotId === null) return;
+            if (!_chatbotId || _chatbotId === "default") return;
+            try {
+                const res = await fetch(
+                    `/api/v1/chatbot/chatbot/${_chatbotId}`,
+                    {
+                        method: "GET",
+                        headers: {
+                            Authorization: token ? `Bearer ${token}` : "",
+                        },
+                    }
+                );
+                const json = await res.json();
+                if (!res.ok)
+                    throw new Error(
+                        json?.detail ||
+                            json?.message ||
+                            "Failed to load chatbot"
+                    );
+                const payload = json?.chatbot ?? json;
+
+                // Normalize backend payload to internal Chatbot format
+                const chat = parseBackendChatbot(payload);
+                if (!mounted) return;
+
+                setVariables(chat.variables || []);
+                setBotName(chat.bot_name || "");
+                setBotId(chat.bot_id || 0);
+
+                // Convert NodeExport -> React Flow nodes
+                const importedNodes: Node[] = [];
+                const importedEdges: Edge[] = [];
+                const nodesArr = Object.values(chat.graph.nodes || {});
+                nodesArr.forEach((nodeExport: any, index: number) => {
+                    const nodeId = String(nodeExport.node_id ?? index);
+                    let data: any = {};
+                    switch (nodeExport.type) {
+                        case "setmessage":
+                            data = {
+                                label: "Set Message",
+                                bodies: nodeExport.bodies || [],
+                            };
+                            break;
+                        case "wait":
+                            data = {
+                                label: "Wait",
+                                delay: nodeExport.delay || 0,
+                            };
+                            break;
+                        case "sendmessage":
+                            data = { label: "Send Message" };
+                            break;
+                        case "condition":
+                            data = {
+                                label: "Condition",
+                                branches: nodeExport.branches || [],
+                            };
+                            break;
+                        case "script":
+                            data = {
+                                label: "Script Node",
+                                script: nodeExport.script || "",
+                                language: nodeExport.language || "python",
+                            };
+                            break;
+                        case "setvar":
+                            data = {
+                                label: "Set Var",
+                                assigned_variable:
+                                    nodeExport.assigned_variable || "",
+                                operation: nodeExport.operation || "=",
+                                operand: nodeExport.operand || "",
+                            };
+                            break;
+                        case "textanswer":
+                            data = {
+                                label: "Text Answer",
+                                variable: nodeExport.variable || "",
+                            };
+                            break;
+                        case "fileanswer":
+                            data = {
+                                label: "File Answer",
+                                variable: nodeExport.variable || "",
+                            };
+                            break;
+                        default:
+                            data = nodeExport;
+                    }
+
+                    importedNodes.push({
+                        id: nodeId,
+                        type: nodeExport.type,
+                        position: nodeExport.position || {
+                            x: (index % 5) * 250,
+                            y: Math.floor(index / 5) * 200,
+                        },
+                        data,
+                    });
+                });
+
+                if (Array.isArray(chat.graph.edges)) {
+                    chat.graph.edges.forEach((edgeExport: any) => {
+                        importedEdges.push({
+                            id: `e${edgeExport.source}-${edgeExport.target}`,
+                            source: String(edgeExport.source),
+                            target: String(edgeExport.target),
+                            sourceHandle: edgeExport.sourceHandle,
+                            targetHandle: edgeExport.targetHandle,
+                        });
+                    });
+                }
+
+                setNodes(importedNodes);
+                setEdges(importedEdges);
+            } catch (err) {
+                console.error("Failed to load chatbot:", err);
+            }
+        };
+        load();
+        return () => {
+            mounted = false;
+        };
+    }, [_chatbotId, token]);
+
+    // Convert current editor state back to backend format and POST to update
+    const saveChatbot = useCallback(async () => {
+        try {
+            if (!_chatbotId || _chatbotId === "default") {
+                alert("Нет выбранного чатбота для сохранения");
+                return;
+            }
+
+            // Keep node ids as strings so edges reference the same ids React Flow uses
+            const nodesObj: Record<string, any> = {};
+            nodes.forEach((n) => {
+                const id = String(n.id);
+                nodesObj[id] = { ...(n.data || {}), node_id: id, type: n.type };
+            });
+
+            // Resolve edge endpoints to existing node keys (handle prefixes like 'b-')
+            const resolveId = (raw: any) => {
+                const s = String(raw);
+                if (nodesObj[s]) return s;
+                // strip common prefix b-
+                if (s.startsWith("b-") && nodesObj[s.slice(2)])
+                    return s.slice(2);
+                // try numeric coercion
+                const num = String(Number(s));
+                if (nodesObj[num]) return num;
+                return s; // fallback, may be unresolved
+            };
+
+            const edgesArr = edges.map((e) => {
+                const src = resolveId(e.source);
+                const tgt = resolveId(e.target);
+                if (!nodesObj[src])
+                    console.warn(
+                        "Edge source not found in nodesObj:",
+                        e,
+                        "resolved->",
+                        src
+                    );
+                if (!nodesObj[tgt])
+                    console.warn(
+                        "Edge target not found in nodesObj:",
+                        e,
+                        "resolved->",
+                        tgt
+                    );
+                return {
+                    source: src,
+                    target: tgt,
+                    sourceHandle: e.sourceHandle ?? undefined,
+                    targetHandle: e.targetHandle ?? undefined,
+                };
+            });
+
+            const chatbot: any = {
+                variables,
+                bot_id: botId,
+                bot_name: botName,
+                graph: {
+                    // choose root as a node without incoming edges when possible
+                    root: (() => {
+                        const targets = new Set(
+                            edgesArr.map((e) => String(e.target))
+                        );
+                        const candidates = Object.keys(nodesObj).filter(
+                            (id) => !targets.has(id)
+                        );
+                        return candidates.length
+                            ? candidates[0]
+                            : Object.keys(nodesObj)[0];
+                    })(),
+                    nodes: nodesObj,
+                    edges: edgesArr,
+                },
+            };
+
+            const payload = serializeToBackendChatbot(chatbot);
+            // Diagnostic logs to help debug missing/incorrect ids
+            try {
+                // show node keys and edges as we send them
+                // eslint-disable-next-line no-console
+                console.log(
+                    "Saving chatbot nodes keys:",
+                    Object.keys(nodesObj)
+                );
+                // eslint-disable-next-line no-console
+                console.log("Saving chatbot edges:", edgesArr);
+                const missing = edgesArr.filter(
+                    (e) => !nodesObj[e.source] || !nodesObj[e.target]
+                );
+                if (missing.length) {
+                    // eslint-disable-next-line no-console
+                    console.warn(
+                        "saveChatbot: edges referencing missing nodes:",
+                        missing
+                    );
+                }
+                // detect suspicious next_node_id values
+                const suspicious = Object.entries(
+                    payload.graph.nodes || {}
+                ).filter(
+                    ([, v]: any) =>
+                        v.next_node_id === "0" || v.next_node_id === 0
+                );
+                if (suspicious.length) {
+                    // eslint-disable-next-line no-console
+                    console.warn(
+                        "saveChatbot: suspicious next_node_id entries:",
+                        suspicious
+                    );
+                }
+                // eslint-disable-next-line no-console
+                console.log("Saving chatbot payload:", payload);
+            } catch (e) {}
+
+            const res = await fetch(`/api/v1/chatbot/chatbot/${_chatbotId}`, {
+                method: "POST",
+                headers: {
+                    Authorization: token ? `Bearer ${token}` : "",
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const json = await res.json().catch(() => null);
+            if (!res.ok) {
+                console.error("Save failed status:", res.status, json);
+                // show detailed server errors when possible
+                const details = json
+                    ? JSON.stringify(json)
+                    : `status ${res.status}`;
+                alert("Ошибка при сохранении: " + details);
+                return;
+            }
+            console.log("Save successful:", json);
+            alert("Чатбот успешно сохранён");
+        } catch (err: any) {
+            alert("Ошибка при сохранении: " + (err?.message || String(err)));
+        }
+    }, [nodes, edges, variables, botId, botName, _chatbotId, token]);
+
+    // Save current graph to backend (POST /api/v1/chatbot/chatbot/{id})
+
     const handleFileImport = useCallback(
         (event: React.ChangeEvent<HTMLInputElement>) => {
             const file = event.target.files?.[0];
@@ -466,6 +785,157 @@ const Editor: React.FC<{
         []
     );
 
+    useEffect(() => {
+        let mounted = true;
+        const load = async () => {
+            if (!_chatbotId) return;
+            try {
+                const res = await fetch(
+                    `/api/v1/chatbot/chatbot/${_chatbotId}`,
+                    {
+                        method: "GET",
+                        headers: {
+                            Authorization: token ? `Bearer ${token}` : "",
+                        },
+                    }
+                );
+                const json = await res.json();
+                if (!res.ok)
+                    throw new Error(
+                        json?.detail ||
+                            json?.message ||
+                            "Failed to load chatbot"
+                    );
+                const payload = json?.chatbot ?? json;
+                const parsed = parseBackendChatbot(payload);
+                if (!mounted) return;
+
+                const importedNodes: Node[] = [];
+                const importedEdges: Edge[] = [];
+                const graph = parsed.graph;
+                Object.values(graph.nodes).forEach((nodeExport: any, index) => {
+                    const nodeId = nodeExport.node_id.toString();
+                    let data: any = {};
+
+                    switch (nodeExport.type) {
+                        case "setmessage":
+                            data = {
+                                label: "Set Message",
+                                bodies: nodeExport.bodies || [],
+                            };
+                            break;
+                        case "wait":
+                            data = {
+                                label: "Wait",
+                                delay: nodeExport.delay || 0,
+                            };
+                            break;
+                        case "sendmessage":
+                            data = { label: "Send Message" };
+                            break;
+                        case "condition":
+                            data = {
+                                label: "Condition",
+                                branches: nodeExport.branches || [],
+                            };
+                            break;
+                        case "script":
+                            data = {
+                                label: "Script Node",
+                                script: nodeExport.script || "",
+                                language: nodeExport.language || "python",
+                            };
+                            break;
+                        case "setvar":
+                            data = {
+                                label: "Set Var",
+                                assigned_variable:
+                                    nodeExport.assigned_variable || "",
+                                operation: nodeExport.operation || "=",
+                                operand: nodeExport.operand || "",
+                            };
+                            break;
+                        case "textanswer":
+                            data = {
+                                label: "Text Answer",
+                                variable: nodeExport.variable || "",
+                            };
+                            break;
+                        case "fileanswer":
+                            data = {
+                                label: "File Answer",
+                                variable: nodeExport.variable || "",
+                            };
+                            break;
+                        default:
+                            data = {
+                                label: nodeExport.type ?? "Node",
+                                bodies: [
+                                    {
+                                        type: "text",
+                                        bodyData: {
+                                            text: JSON.stringify(nodeExport),
+                                        },
+                                    },
+                                ],
+                            };
+                    }
+
+                    importedNodes.push({
+                        id: nodeId,
+                        type: nodeExport.type,
+                        position: nodeExport.position || {
+                            x: (index % 5) * 250,
+                            y: Math.floor(index / 5) * 200,
+                        },
+                        data,
+                    });
+                });
+
+                if (Array.isArray(graph.edges)) {
+                    graph.edges.forEach((edgeExport: any) => {
+                        importedEdges.push({
+                            id: `e${edgeExport.source}-${edgeExport.target}`,
+                            source: edgeExport.source.toString(),
+                            target: edgeExport.target.toString(),
+                            sourceHandle: edgeExport.sourceHandle,
+                            targetHandle: edgeExport.targetHandle,
+                        });
+                    });
+                } else {
+                    Object.values(graph.nodes).forEach((ne: any) => {
+                        const srcId = (ne.node_id ?? ne.id).toString();
+                        const target =
+                            ne.next_node_id ?? ne.nextNodeId ?? ne.next;
+                        if (target !== undefined && target !== null) {
+                            importedEdges.push({
+                                id: `e${srcId}-${target}`,
+                                source: srcId.toString(),
+                                target: target.toString(),
+                            });
+                        }
+                    });
+                }
+
+                setVariables(parsed.variables || []);
+                setBotName(parsed.bot_name || "");
+                setBotId(parsed.bot_id || 0);
+                setNodes(importedNodes);
+                setEdges(importedEdges);
+            } catch (err: any) {
+                console.error(err);
+                alert(
+                    "Ошибка при загрузке чатбота: " +
+                        (err?.message || String(err))
+                );
+            }
+        };
+        load();
+        return () => {
+            mounted = false;
+        };
+    }, [_chatbotId, token]);
+
     const menuItems: MenuItem[] = [
         {
             label: "Экспорт",
@@ -489,16 +959,12 @@ const Editor: React.FC<{
                   },
               ]
             : []),
-        ...(onLogout
-            ? [
-                  {
-                      label: "Logout",
-                      type: "button" as const,
-                      variant: "secondary" as const,
-                      onClick: onLogout,
-                  },
-              ]
-            : []),
+        {
+            label: "Сохранить",
+            type: "button",
+            variant: "secondary",
+            onClick: saveChatbot,
+        },
     ];
 
     return (

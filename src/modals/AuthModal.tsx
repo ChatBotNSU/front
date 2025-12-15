@@ -46,7 +46,6 @@ export default function AuthModal({
             });
             alert("Sign up is not implemented yet.");
         } else {
-            // Call backend token endpoint
             setLoading(true);
             setError(null);
             const fd = new FormData();
@@ -55,7 +54,6 @@ export default function AuthModal({
 
             fetch("/api/v1/auth/token", {
                 method: "POST",
-                // Note: do not set Content-Type header; browser will set multipart/form-data boundary
                 body: fd,
             })
                 .then(async (res) => {
@@ -68,7 +66,6 @@ export default function AuthModal({
                     return json;
                 })
                 .then((data) => {
-                    // data: { access_token, token_type }
                     onSuccess?.({
                         user: { email: email.value },
                         access_token: data.access_token,
