@@ -15,6 +15,7 @@ interface BaseNodeProps<T extends BaseNodeData> {
     children?: React.ReactNode;
     handlesConfig?: HandleConfig[];
     handleLabels?: Partial<Record<RFPosition, string[]>>;
+    showBottomIndices?: boolean;
 }
 
 const BaseNode = <T extends BaseNodeData>({
@@ -26,6 +27,7 @@ const BaseNode = <T extends BaseNodeData>({
         { count: 1, position: RFPosition.Bottom },
     ],
     handleLabels,
+    showBottomIndices = false,
 }: BaseNodeProps<T>) => {
     const baseStyle = {
         padding: 12,
@@ -81,18 +83,18 @@ const BaseNode = <T extends BaseNodeData>({
             if (position === RFPosition.Bottom) {
                 style = {
                     ...style,
-                    bottom: -6,
-                    width: 12,
-                    height: 12,
+                    bottom: -20,
+                    width: 40,
+                    height: 40,
                     opacity: 0, // кликаем по кружку, центр совпадает
                 } as React.CSSProperties;
             }
             if (position === RFPosition.Top) {
                 style = {
                     ...style,
-                    top: -6,
-                    width: 12,
-                    height: 12,
+                    top: -20,
+                    width: 40,
+                    height: 40,
                     opacity: 0,
                 } as React.CSSProperties;
             }
@@ -101,7 +103,8 @@ const BaseNode = <T extends BaseNodeData>({
                 <Handle
                     key={`${position}-${i}`}
                     type={
-                        position === RFPosition.Top || position === RFPosition.Left
+                        position === RFPosition.Top ||
+                        position === RFPosition.Left
                             ? "target"
                             : "source"
                     }
@@ -111,66 +114,60 @@ const BaseNode = <T extends BaseNodeData>({
                 />
             );
 
-            // Отрисовать видимый индикатор выхода/входа рядом с точкой соединения
+            // Отрисовать стрелки и индексы для входа/выхода
             if (position === RFPosition.Bottom) {
-                const dotStyle: React.CSSProperties = {
+                const containerStyle: React.CSSProperties = {
                     position: "absolute",
                     left: `${percent}%`,
                     transform: "translateX(-50%)",
-                    bottom: -6,
-                    width: 12,
-                    height: 12,
-                    borderRadius: 9999,
-                    background: "#111827",
-                    border: "2px solid #111827",
+                    bottom: -24,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 1,
                     pointerEvents: "none",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "#3b82f6",
                 };
-                handles.push(
-                    <div key={`${position}-dot-${i}`} style={dotStyle} />
-                );
+                if (showBottomIndices) {
+                    handles.push(
+                        <div
+                            key={`${position}-label-${i}`}
+                            style={containerStyle}
+                        >
+                            <div>▼</div>
+                            <div>{i + 1}</div>
+                        </div>
+                    );
+                } else {
+                    handles.push(
+                        <div
+                            key={`${position}-label-${i}`}
+                            style={containerStyle}
+                        >
+                            <div>▼</div>
+                        </div>
+                    );
+                }
             }
             if (position === RFPosition.Top) {
-                const dotStyle: React.CSSProperties = {
+                const containerStyle: React.CSSProperties = {
                     position: "absolute",
                     left: `${percent}%`,
                     transform: "translateX(-50%)",
-                    top: -6,
-                    width: 12,
-                    height: 12,
-                    borderRadius: 9999,
-                    background: "#111827",
-                    border: "2px solid #111827",
-                    pointerEvents: "none",
-                };
-                handles.push(
-                    <div key={`${position}-dot-${i}`} style={dotStyle} />
-                );
-            }
-
-            const labelsForPosition = handleLabels?.[position];
-            const label = labelsForPosition && labelsForPosition[i];
-            if (label && position === RFPosition.Bottom) {
-                const labelStyle: any = {
-                    position: "absolute",
-                    left: `${percent}%`,
-                    transform: "translateX(-50%)",
-                    bottom: -11, // вынести за пределы ноды вниз
-                    background: "#e5e7eb",
-                    color: "#111827",
-                    borderRadius: 9,
-                    height: 18,
-                    minWidth: 18,
+                    top: -18,
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    padding: "0 5px",
                     pointerEvents: "none",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "#10b981",
                 };
                 handles.push(
-                    <div key={`${position}-label-${i}`} style={labelStyle}>
-                        {label}
+                    <div key={`${position}-label-${i}`} style={containerStyle}>
+                        ▲
                     </div>
                 );
             }

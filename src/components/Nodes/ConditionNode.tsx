@@ -1,7 +1,16 @@
 import BaseNode from "./BaseNode";
 import { Position } from "react-flow-renderer";
 
-export type ConditionOperator = "==" | "!=" | ">" | "<" | ">=" | "<=" | "contains" | "startsWith" | "endsWith";
+export type ConditionOperator =
+    | "=="
+    | "!="
+    | ">"
+    | "<"
+    | ">="
+    | "<="
+    | "contains"
+    | "startsWith"
+    | "endsWith";
 
 export interface ConditionBranch {
     condition: {
@@ -22,7 +31,17 @@ interface ConditionNodeProps {
 }
 
 const ConditionNode = ({ data }: ConditionNodeProps) => {
-    const operators: ConditionOperator[] = ["==", "!=", ">", "<", ">=", "<=", "contains", "startsWith", "endsWith"];
+    const operators: ConditionOperator[] = [
+        "==",
+        "!=",
+        ">",
+        "<",
+        ">=",
+        "<=",
+        "contains",
+        "startsWith",
+        "endsWith",
+    ];
 
     return (
         <BaseNode
@@ -31,17 +50,37 @@ const ConditionNode = ({ data }: ConditionNodeProps) => {
                 { count: 1, position: Position.Top },
                 { count: data.branches.length, position: Position.Bottom },
             ]}
-            handleLabels={{
-                [Position.Bottom]: data.branches.map((_, i) => String(i + 1)),
-            }}
+            showBottomIndices={true}
         >
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {data.branches.map((branch, idx) => (
-                    <div key={idx} style={{ display: "flex", flexDirection: "column", gap: 4, padding: 8, background: "#f3f4f6", borderRadius: 6 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
-                            Ветка {idx + 1}
+                    <div
+                        key={idx}
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 4,
+                            padding: 8,
+                            background: "#f3f4f6",
+                            borderRadius: 6,
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                marginBottom: 4,
+                            }}
+                        >
+                            Условие {idx + 1}
                         </div>
-                        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: 4,
+                                alignItems: "center",
+                            }}
+                        >
                             <input
                                 type="text"
                                 value={branch.condition.variable}
@@ -49,12 +88,24 @@ const ConditionNode = ({ data }: ConditionNodeProps) => {
                                     const newBranches = [...data.branches];
                                     newBranches[idx] = {
                                         ...branch,
-                                        condition: { ...branch.condition, variable: e.target.value },
+                                        condition: {
+                                            ...branch.condition,
+                                            variable: e.target.value,
+                                        },
                                     };
-                                    data.onChange?.({ ...data, branches: newBranches });
+                                    data.onChange?.({
+                                        ...data,
+                                        branches: newBranches,
+                                    });
                                 }}
                                 placeholder="Переменная"
-                                style={{ flex: 1, padding: 4, border: "1px solid #d1d5db", borderRadius: 4, fontSize: 11 }}
+                                style={{
+                                    flex: 1,
+                                    padding: 4,
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                }}
                             />
                             <select
                                 value={branch.condition.operator}
@@ -62,11 +113,23 @@ const ConditionNode = ({ data }: ConditionNodeProps) => {
                                     const newBranches = [...data.branches];
                                     newBranches[idx] = {
                                         ...branch,
-                                        condition: { ...branch.condition, operator: e.target.value as ConditionOperator },
+                                        condition: {
+                                            ...branch.condition,
+                                            operator: e.target
+                                                .value as ConditionOperator,
+                                        },
                                     };
-                                    data.onChange?.({ ...data, branches: newBranches });
+                                    data.onChange?.({
+                                        ...data,
+                                        branches: newBranches,
+                                    });
                                 }}
-                                style={{ padding: 4, border: "1px solid #d1d5db", borderRadius: 4, fontSize: 11 }}
+                                style={{
+                                    padding: 4,
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                }}
                             >
                                 {operators.map((op) => (
                                     <option key={op} value={op}>
@@ -81,12 +144,24 @@ const ConditionNode = ({ data }: ConditionNodeProps) => {
                                     const newBranches = [...data.branches];
                                     newBranches[idx] = {
                                         ...branch,
-                                        condition: { ...branch.condition, value: e.target.value },
+                                        condition: {
+                                            ...branch.condition,
+                                            value: e.target.value,
+                                        },
                                     };
-                                    data.onChange?.({ ...data, branches: newBranches });
+                                    data.onChange?.({
+                                        ...data,
+                                        branches: newBranches,
+                                    });
                                 }}
                                 placeholder="Значение"
-                                style={{ flex: 1, padding: 4, border: "1px solid #d1d5db", borderRadius: 4, fontSize: 11 }}
+                                style={{
+                                    flex: 1,
+                                    padding: 4,
+                                    border: "1px solid #d1d5db",
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                }}
                             />
                         </div>
                     </div>
@@ -97,4 +172,3 @@ const ConditionNode = ({ data }: ConditionNodeProps) => {
 };
 
 export default ConditionNode;
-
