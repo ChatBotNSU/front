@@ -304,7 +304,10 @@ const Editor: React.FC<{
         } else {
             const targetIds = new Set(edges.map((e) => e.target));
             const rootNodes = nodes.filter((n) => !targetIds.has(n.id));
-            rootId = rootNodes.length > 0 ? parseInt(rootNodes[0].id) : parseInt(nodes[0].id);
+            rootId =
+                rootNodes.length > 0
+                    ? parseInt(rootNodes[0].id)
+                    : parseInt(nodes[0].id);
         }
 
         const nodesExport: Record<number, NodeExport> = {};
@@ -603,13 +606,20 @@ const Editor: React.FC<{
                 bot_name: botName,
                 graph: {
                     // prefer explicitly set rootNodeId, otherwise choose a node without incoming edges
-                    root: (rootNodeId && nodesObj[String(rootNodeId)])
-                        ? String(rootNodeId)
-                        : (() => {
-                              const targets = new Set(edgesArr.map((e) => String(e.target)));
-                              const candidates = Object.keys(nodesObj).filter((id) => !targets.has(id));
-                              return candidates.length ? candidates[0] : Object.keys(nodesObj)[0];
-                          })(),
+                    root:
+                        rootNodeId && nodesObj[String(rootNodeId)]
+                            ? String(rootNodeId)
+                            : (() => {
+                                  const targets = new Set(
+                                      edgesArr.map((e) => String(e.target))
+                                  );
+                                  const candidates = Object.keys(
+                                      nodesObj
+                                  ).filter((id) => !targets.has(id));
+                                  return candidates.length
+                                      ? candidates[0]
+                                      : Object.keys(nodesObj)[0];
+                              })(),
                     nodes: nodesObj,
                     edges: edgesArr,
                 },
@@ -678,7 +688,16 @@ const Editor: React.FC<{
         } catch (err: any) {
             alert("Ошибка при сохранении: " + (err?.message || String(err)));
         }
-    }, [nodes, edges, variables, botId, botName, _chatbotId, token, rootNodeId]);
+    }, [
+        nodes,
+        edges,
+        variables,
+        botId,
+        botName,
+        _chatbotId,
+        token,
+        rootNodeId,
+    ]);
 
     // Save current graph to backend (POST /api/v1/chatbot/chatbot/{id})
 
@@ -1023,7 +1042,6 @@ const Editor: React.FC<{
         },
     ];
 
-
     return (
         <div
             style={{
@@ -1177,33 +1195,52 @@ const Editor: React.FC<{
                         <div style={{ fontWeight: 600, marginBottom: 8 }}>
                             Параметры ноды
                         </div>
-                            <div style={{ marginBottom: 12 }}>
-                                <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>
-                                    <strong>Root node:</strong>{" "}
-                                    {rootNodeId ? (
-                                        <span>
-                                            <span style={{ fontWeight: 600 }}>{rootNodeId}</span>
-                                            {" "}
-                                            <button
-                                                onClick={() => setRootNodeId(null)}
-                                                style={{ marginLeft: 8, padding: "4px 8px", fontSize: 12 }}
-                                            >
-                                                Unset
-                                            </button>
-                                        </span>
-                                    ) : (
-                                        <span style={{ color: "#6b7280" }}>not set</span>
-                                    )}
-                                </div>
-                                {activeNode && activeNode.id !== rootNodeId && (
-                                    <button
-                                        onClick={() => setRootNodeId(activeNode.id)}
-                                        style={{ padding: "6px 10px", fontSize: 13, borderRadius: 6, background: "#eef2ff", border: "1px solid #dbeafe" }}
-                                    >
-                                        Set as root
-                                    </button>
+                        <div style={{ marginBottom: 12 }}>
+                            <div
+                                style={{
+                                    fontSize: 12,
+                                    color: "#374151",
+                                    marginBottom: 6,
+                                }}
+                            >
+                                <strong>Root node:</strong>{" "}
+                                {rootNodeId ? (
+                                    <span>
+                                        <span style={{ fontWeight: 600 }}>
+                                            {rootNodeId}
+                                        </span>{" "}
+                                        <button
+                                            onClick={() => setRootNodeId(null)}
+                                            style={{
+                                                marginLeft: 8,
+                                                padding: "4px 8px",
+                                                fontSize: 12,
+                                            }}
+                                        >
+                                            Unset
+                                        </button>
+                                    </span>
+                                ) : (
+                                    <span style={{ color: "#6b7280" }}>
+                                        not set
+                                    </span>
                                 )}
                             </div>
+                            {activeNode && activeNode.id !== rootNodeId && (
+                                <button
+                                    onClick={() => setRootNodeId(activeNode.id)}
+                                    style={{
+                                        padding: "6px 10px",
+                                        fontSize: 13,
+                                        borderRadius: 6,
+                                        background: "#eef2ff",
+                                        border: "1px solid #dbeafe",
+                                    }}
+                                >
+                                    Set as root
+                                </button>
+                            )}
+                        </div>
                         {!activeNode && (
                             <div style={{ fontSize: 12, color: "#6b7280" }}>
                                 Выберите ноду на канвасе
@@ -1829,10 +1866,16 @@ const Editor: React.FC<{
                     </div>
                 </div>
                 {showPreview && (
-                    <PreviewModal chatbotId={String(_chatbotId)} onClose={() => setShowPreview(false)} />
+                    <PreviewModal
+                        chatbotId={String(_chatbotId)}
+                        onClose={() => setShowPreview(false)}
+                    />
                 )}
                 {showPublish && (
-                    <PublishModal chatbotId={String(_chatbotId)} onClose={() => setShowPublish(false)} />
+                    <PublishModal
+                        chatbotId={String(_chatbotId)}
+                        onClose={() => setShowPublish(false)}
+                    />
                 )}
             </div>
         </div>
