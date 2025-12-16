@@ -24,6 +24,7 @@ export interface ConditionNodeData {
     label?: string;
     branches: ConditionBranch[];
     onChange?: (newData: ConditionNodeData) => void;
+    availableVariables?: string[];
 }
 
 interface ConditionNodeProps {
@@ -81,32 +82,42 @@ const ConditionNode = ({ data }: ConditionNodeProps) => {
                                 alignItems: "center",
                             }}
                         >
-                            <input
-                                type="text"
-                                value={branch.condition.variable}
-                                onChange={(e) => {
-                                    const newBranches = [...data.branches];
-                                    newBranches[idx] = {
-                                        ...branch,
-                                        condition: {
-                                            ...branch.condition,
-                                            variable: e.target.value,
-                                        },
-                                    };
-                                    data.onChange?.({
-                                        ...data,
-                                        branches: newBranches,
-                                    });
-                                }}
-                                placeholder="Переменная"
-                                style={{
-                                    flex: 1,
-                                    padding: 4,
-                                    border: "1px solid #d1d5db",
-                                    borderRadius: 4,
-                                    fontSize: 11,
-                                }}
-                            />
+                            <div style={{ position: "relative", flex: 1 }}>
+                                <input
+                                    type="text"
+                                    list={`vars-cond-${idx}`}
+                                    value={branch.condition.variable}
+                                    onChange={(e) => {
+                                        const newBranches = [...data.branches];
+                                        newBranches[idx] = {
+                                            ...branch,
+                                            condition: {
+                                                ...branch.condition,
+                                                variable: e.target.value,
+                                            },
+                                        };
+                                        data.onChange?.({
+                                            ...data,
+                                            branches: newBranches,
+                                        });
+                                    }}
+                                    placeholder="Переменная"
+                                    style={{
+                                        flex: 1,
+                                        padding: 4,
+                                        border: "1px solid #d1d5db",
+                                        borderRadius: 4,
+                                        fontSize: 11,
+                                        width: "100%",
+                                        boxSizing: "border-box",
+                                    }}
+                                />
+                                <datalist id={`vars-cond-${idx}`}>
+                                    {data.availableVariables?.map((v) => (
+                                        <option key={v} value={v} />
+                                    ))}
+                                </datalist>
+                            </div>
                             <select
                                 value={branch.condition.operator}
                                 onChange={(e) => {
@@ -137,32 +148,42 @@ const ConditionNode = ({ data }: ConditionNodeProps) => {
                                     </option>
                                 ))}
                             </select>
-                            <input
-                                type="text"
-                                value={branch.condition.value}
-                                onChange={(e) => {
-                                    const newBranches = [...data.branches];
-                                    newBranches[idx] = {
-                                        ...branch,
-                                        condition: {
-                                            ...branch.condition,
-                                            value: e.target.value,
-                                        },
-                                    };
-                                    data.onChange?.({
-                                        ...data,
-                                        branches: newBranches,
-                                    });
-                                }}
-                                placeholder="Значение"
-                                style={{
-                                    flex: 1,
-                                    padding: 4,
-                                    border: "1px solid #d1d5db",
-                                    borderRadius: 4,
-                                    fontSize: 11,
-                                }}
-                            />
+                            <div style={{ position: "relative", flex: 1 }}>
+                                <input
+                                    type="text"
+                                    list={`vars-value-${idx}`}
+                                    value={branch.condition.value}
+                                    onChange={(e) => {
+                                        const newBranches = [...data.branches];
+                                        newBranches[idx] = {
+                                            ...branch,
+                                            condition: {
+                                                ...branch.condition,
+                                                value: e.target.value,
+                                            },
+                                        };
+                                        data.onChange?.({
+                                            ...data,
+                                            branches: newBranches,
+                                        });
+                                    }}
+                                    placeholder="Значение"
+                                    style={{
+                                        flex: 1,
+                                        padding: 4,
+                                        border: "1px solid #d1d5db",
+                                        borderRadius: 4,
+                                        fontSize: 11,
+                                        width: "100%",
+                                        boxSizing: "border-box",
+                                    }}
+                                />
+                                <datalist id={`vars-value-${idx}`}>
+                                    {data.availableVariables?.map((v) => (
+                                        <option key={v} value={v} />
+                                    ))}
+                                </datalist>
+                            </div>
                         </div>
                     </div>
                 ))}

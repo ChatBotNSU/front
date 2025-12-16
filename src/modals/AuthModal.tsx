@@ -184,8 +184,6 @@ export default function AuthModal({
                 {error && (
                     <div className="text-red-500 mt-3 text-sm">{error}</div>
                 )}
-
-                {/* OAuth buttons removed per request */}
             </div>
         </div>
     );

@@ -70,7 +70,6 @@ const Editor: React.FC<{
     onLogout,
     onBack,
 }) => {
-    // mark onLogout as used to avoid TS6133 when it's not needed here
     void onLogout;
     const [nodes, setNodes] = useState<Node[]>([]);
     const [variables, setVariables] = useState<Variable[]>([]);

@@ -1,9 +1,7 @@
 import { useState } from "react";
-// removed top navbar per design: greetings page should be clean with single action
 import Grid from "../components/Grid";
 import OverlayText from "../components/OverlayText";
 import OverlayButton from "../components/OverlayButton";
-import type { MenuItem } from "../types/menu";
 
 export default function Greetings({
     onOpenAuth,

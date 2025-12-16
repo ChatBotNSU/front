@@ -65,7 +65,7 @@ const PreviewModal: React.FC<{
         setText("");
         setLoading(true);
         try {
-            // include restart_command per API schema (defaulting to true)
+            // include restart_command = true by default
             const body = {
                 text: userMsg,
                 images: [],
@@ -79,7 +79,6 @@ const PreviewModal: React.FC<{
                 body,
                 token
             );
-            // Try to extract bot replies in multiple shapes
             if (Array.isArray(res?.messages)) {
                 res.messages.forEach((m: any) =>
                     pushBotMessage(m.text ?? String(m))
