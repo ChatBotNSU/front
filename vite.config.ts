@@ -7,12 +7,24 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
+      "/api/v1/telegram": {
+        target: "http://localhost:8082",
+        changeOrigin: true,
+        secure: false,
+      },
+      // Forward preview endpoints to preview backend (running on 8081)
+      "/api/v1/preview": {
+        target: "http://localhost:8081",
+        changeOrigin: true,
+        secure: false,
+      },
       // Forward /api requests to backend running on localhost:8080 during development
       "/api": {
         target: "http://localhost:8080",
         changeOrigin: true,
         secure: false,
       },
+      
     },
   },
 })

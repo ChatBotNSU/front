@@ -45,6 +45,8 @@ import type { RootState } from "../store";
 import parseBackendChatbot from "../utils/parseBackendChatbot";
 import serializeToBackendChatbot from "../utils/serializeToBackendChatbot";
 import { deleteChatbot } from "../utils/chatbotApi";
+import PreviewModal from "../components/Preview/PreviewModal";
+import PublishModal from "../components/Publish/PublishModal";
 import type { MenuItem } from "../types/menu";
 import type { Chatbot, NodeExport, Variable } from "../types/chatbot";
 
@@ -77,9 +79,12 @@ const Editor: React.FC<{
 
     const [edges, setEdges] = useState<Edge[]>([]);
     const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
+    const [rootNodeId, setRootNodeId] = useState<string | null>(null);
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const reactFlowInstanceRef = useRef<any>(null);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+    const [showPreview, setShowPreview] = useState(false);
+    const [showPublish, setShowPublish] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const onInit: OnInit = useCallback((instance) => {
@@ -89,6 +94,13 @@ const Editor: React.FC<{
     const onNodesChange = useCallback((changes: NodeChange[]) => {
         setNodes((nds) => applyNodeChanges(changes, nds));
     }, []);
+
+    // Ensure rootNodeId stays valid: clear if the root node was removed
+    useEffect(() => {
+        if (rootNodeId && !nodes.find((n) => n.id === rootNodeId)) {
+            setRootNodeId(null);
+        }
+    }, [nodes, rootNodeId]);
 
     const onEdgesChange = useCallback((changes: EdgeChange[]) => {
         setEdges((eds) => applyEdgeChanges(changes, eds));
@@ -227,6 +239,8 @@ const Editor: React.FC<{
                     ...nds,
                     { id, type: nodeType as any, position, data },
                 ]);
+                // If no explicit root is set yet, make the first created node the root
+                setRootNodeId((prev) => prev || id);
                 setActiveNodeId(id);
                 return;
             }
@@ -283,13 +297,15 @@ const Editor: React.FC<{
             alert("Нет нод для экспорта");
             return;
         }
-
-        const targetIds = new Set(edges.map((e) => e.target));
-        const rootNodes = nodes.filter((n) => !targetIds.has(n.id));
-        const rootId =
-            rootNodes.length > 0
-                ? parseInt(rootNodes[0].id)
-                : parseInt(nodes[0].id);
+        // Respect explicit rootNodeId when exporting
+        let rootId: number;
+        if (rootNodeId && nodes.find((n) => n.id === rootNodeId)) {
+            rootId = parseInt(rootNodeId);
+        } else {
+            const targetIds = new Set(edges.map((e) => e.target));
+            const rootNodes = nodes.filter((n) => !targetIds.has(n.id));
+            rootId = rootNodes.length > 0 ? parseInt(rootNodes[0].id) : parseInt(nodes[0].id);
+        }
 
         const nodesExport: Record<number, NodeExport> = {};
         nodes.forEach((node) => {
@@ -516,6 +532,8 @@ const Editor: React.FC<{
 
                 setNodes(importedNodes);
                 setEdges(importedEdges);
+                // set root node from backend payload when available
+                setRootNodeId(String(chat.graph?.root ?? ""));
             } catch (err) {
                 console.error("Failed to load chatbot:", err);
             }
@@ -584,18 +602,14 @@ const Editor: React.FC<{
                 bot_id: botId,
                 bot_name: botName,
                 graph: {
-                    // choose root as a node without incoming edges when possible
-                    root: (() => {
-                        const targets = new Set(
-                            edgesArr.map((e) => String(e.target))
-                        );
-                        const candidates = Object.keys(nodesObj).filter(
-                            (id) => !targets.has(id)
-                        );
-                        return candidates.length
-                            ? candidates[0]
-                            : Object.keys(nodesObj)[0];
-                    })(),
+                    // prefer explicitly set rootNodeId, otherwise choose a node without incoming edges
+                    root: (rootNodeId && nodesObj[String(rootNodeId)])
+                        ? String(rootNodeId)
+                        : (() => {
+                              const targets = new Set(edgesArr.map((e) => String(e.target)));
+                              const candidates = Object.keys(nodesObj).filter((id) => !targets.has(id));
+                              return candidates.length ? candidates[0] : Object.keys(nodesObj)[0];
+                          })(),
                     nodes: nodesObj,
                     edges: edgesArr,
                 },
@@ -664,7 +678,7 @@ const Editor: React.FC<{
         } catch (err: any) {
             alert("Ошибка при сохранении: " + (err?.message || String(err)));
         }
-    }, [nodes, edges, variables, botId, botName, _chatbotId, token]);
+    }, [nodes, edges, variables, botId, botName, _chatbotId, token, rootNodeId]);
 
     // Save current graph to backend (POST /api/v1/chatbot/chatbot/{id})
 
@@ -773,6 +787,7 @@ const Editor: React.FC<{
 
                     setNodes(importedNodes);
                     setEdges(importedEdges);
+                    setRootNodeId(String(graph.root ?? ""));
                     alert("Граф успешно импортирован!");
                 } catch (error) {
                     alert(
@@ -967,6 +982,18 @@ const Editor: React.FC<{
             onClick: saveChatbot,
         },
         {
+            label: "Превью",
+            type: "button",
+            variant: "secondary",
+            onClick: () => setShowPreview(true),
+        },
+        {
+            label: "Опубликовать",
+            type: "button",
+            variant: "secondary",
+            onClick: () => setShowPublish(true),
+        },
+        {
             label: "Удалить",
             type: "button",
             variant: "danger",
@@ -995,6 +1022,7 @@ const Editor: React.FC<{
             },
         },
     ];
+
 
     return (
         <div
@@ -1149,6 +1177,33 @@ const Editor: React.FC<{
                         <div style={{ fontWeight: 600, marginBottom: 8 }}>
                             Параметры ноды
                         </div>
+                            <div style={{ marginBottom: 12 }}>
+                                <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>
+                                    <strong>Root node:</strong>{" "}
+                                    {rootNodeId ? (
+                                        <span>
+                                            <span style={{ fontWeight: 600 }}>{rootNodeId}</span>
+                                            {" "}
+                                            <button
+                                                onClick={() => setRootNodeId(null)}
+                                                style={{ marginLeft: 8, padding: "4px 8px", fontSize: 12 }}
+                                            >
+                                                Unset
+                                            </button>
+                                        </span>
+                                    ) : (
+                                        <span style={{ color: "#6b7280" }}>not set</span>
+                                    )}
+                                </div>
+                                {activeNode && activeNode.id !== rootNodeId && (
+                                    <button
+                                        onClick={() => setRootNodeId(activeNode.id)}
+                                        style={{ padding: "6px 10px", fontSize: 13, borderRadius: 6, background: "#eef2ff", border: "1px solid #dbeafe" }}
+                                    >
+                                        Set as root
+                                    </button>
+                                )}
+                            </div>
                         {!activeNode && (
                             <div style={{ fontSize: 12, color: "#6b7280" }}>
                                 Выберите ноду на канвасе
@@ -1773,6 +1828,12 @@ const Editor: React.FC<{
                         )}
                     </div>
                 </div>
+                {showPreview && (
+                    <PreviewModal chatbotId={String(_chatbotId)} onClose={() => setShowPreview(false)} />
+                )}
+                {showPublish && (
+                    <PublishModal chatbotId={String(_chatbotId)} onClose={() => setShowPublish(false)} />
+                )}
             </div>
         </div>
     );
