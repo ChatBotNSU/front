@@ -28,7 +28,10 @@ export default function Greetings({
                 />
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-9 pointer-events-none">
                     <OverlayText text="ChatBotEditor" />
-                    <OverlayButton label="Войти" onClick={() => onOpenAuth?.("login") } />
+                    <OverlayButton
+                        label="Войти"
+                        onClick={() => onOpenAuth?.("login")}
+                    />
                 </div>
             </div>
         </>

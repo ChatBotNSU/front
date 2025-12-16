@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { deleteChatbot, createChatbot } from "../utils/chatbotApi";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store";
+import ConfirmModal from "../components/ConfirmModal";
 
 interface Chatbot {
     id: string;
@@ -21,6 +22,8 @@ const UserStorage: React.FC<{
     const [error, setError] = useState<string | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newBotName, setNewBotName] = useState("");
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
     const handleCreateChatbot = async () => {
         if (!newBotName.trim()) return;
@@ -77,18 +80,24 @@ const UserStorage: React.FC<{
             setChatbots((cur) => cur.filter((bot) => bot.id !== id));
             return;
         }
+        // Show confirmation modal
+        setPendingDeleteId(id);
+        setShowDeleteConfirm(true);
+    };
 
-        if (!confirm("Вы уверены, что хотите удалить этот чатбот?")) return;
-        if (!token) {
-            alert("Missing auth token");
+    const handleConfirmDelete = async () => {
+        if (!pendingDeleteId || !token) {
+            setShowDeleteConfirm(false);
             return;
         }
 
         try {
             setLoading(true);
-            await deleteChatbot(id, token);
+            await deleteChatbot(pendingDeleteId, token);
             // remove from UI list
-            setChatbots((cur) => cur.filter((bot) => bot.id !== id));
+            setChatbots((cur) =>
+                cur.filter((bot) => bot.id !== pendingDeleteId)
+            );
             alert("Чатбот удалён");
         } catch (err: any) {
             alert(
@@ -96,6 +105,8 @@ const UserStorage: React.FC<{
             );
         } finally {
             setLoading(false);
+            setShowDeleteConfirm(false);
+            setPendingDeleteId(null);
         }
     };
     const loadChatbots = async () => {
@@ -148,6 +159,19 @@ const UserStorage: React.FC<{
 
     return (
         <div className="relative w-full min-h-screen overflow-hidden bg-gray-900 p-8 font-sans">
+            <ConfirmModal
+                isOpen={showDeleteConfirm}
+                title="Удалить чатбот"
+                message="Вы уверены, что хотите удалить этот чатбот? Это действие необратимо."
+                confirmLabel="Удалить"
+                cancelLabel="Отмена"
+                isDanger
+                onConfirm={handleConfirmDelete}
+                onCancel={() => {
+                    setShowDeleteConfirm(false);
+                    setPendingDeleteId(null);
+                }}
+            />
             <div
                 style={{
                     display: "flex",
@@ -286,7 +310,9 @@ const UserStorage: React.FC<{
                             onClick={() => onSelectChatbot(bot.id)}
                             style={{ flex: 1 }}
                         >
-                            <h3 className="text-lg font-semibold text-gray-800 mb-2">{bot.name}</h3>
+                            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                                {bot.name}
+                            </h3>
                         </div>
                         <div
                             style={{

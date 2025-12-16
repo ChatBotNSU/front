@@ -47,7 +47,6 @@ import serializeToBackendChatbot from "../utils/serializeToBackendChatbot";
 import { deleteChatbot } from "../utils/chatbotApi";
 import PreviewModal from "../components/Preview/PreviewModal";
 import PublishModal from "../components/Publish/PublishModal";
-import ConfirmModal from "../components/ConfirmModal";
 import type { MenuItem } from "../types/menu";
 import type { Chatbot, NodeExport, Variable } from "../types/chatbot";
 
@@ -86,7 +85,6 @@ const Editor: React.FC<{
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
     const [showPreview, setShowPreview] = useState(false);
     const [showPublish, setShowPublish] = useState(false);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const onInit: OnInit = useCallback((instance) => {
@@ -1031,32 +1029,23 @@ const Editor: React.FC<{
             type: "button",
             variant: "danger",
             onClick: () => {
-                if (!_chatbotId || _chatbotId === "default") {
-                    alert("Нет выбранного чатбота для удаления");
+                if (!activeNodeId) {
+                    alert("Выберите ноду для удаления");
                     return;
                 }
-                setShowDeleteConfirm(true);
+                setNodes((nds) => nds.filter((n) => n.id !== activeNodeId));
+                setEdges((eds) =>
+                    eds.filter(
+                        (e) =>
+                            e.source !== activeNodeId &&
+                            e.target !== activeNodeId
+                    )
+                );
+                setActiveNodeId(null);
             },
             icon: "delete",
         },
     ];
-
-    const handleConfirmDelete = async () => {
-        if (!_chatbotId || _chatbotId === "default") return;
-        try {
-            await deleteChatbot(_chatbotId, token);
-            alert("Чатбот успешно удалён");
-            if (onBack) onBack();
-            else window.location.href = "/";
-        } catch (err: any) {
-            alert(
-                "Ошибка при удалении чатбота: " +
-                    (err?.message ?? String(err))
-            );
-        } finally {
-            setShowDeleteConfirm(false);
-        }
-    };
 
     return (
         <div
@@ -1067,17 +1056,12 @@ const Editor: React.FC<{
                 flexDirection: "column",
             }}
         >
-            <ConfirmModal
-                isOpen={showDeleteConfirm}
-                title="Удалить чатбот"
-                message="Вы уверены, что хотите удалить этот чатбот? Это действие необратимо."
-                confirmLabel="Удалить"
-                cancelLabel="Отмена"
-                isDanger
-                onConfirm={handleConfirmDelete}
-                onCancel={() => setShowDeleteConfirm(false)}
+            <Navbar
+                leftItems={leftItems}
+                centerItems={centerItems}
+                rightItems={rightItems}
+                hideBrand
             />
-            <Navbar leftItems={leftItems} centerItems={centerItems} rightItems={rightItems} hideBrand />
             <input
                 ref={fileInputRef}
                 type="file"
@@ -1510,99 +1494,15 @@ const Editor: React.FC<{
                                         gap: 6,
                                     }}
                                 >
-                                    <label style={{ fontSize: 12 }}>Язык</label>
-                                    <select
-                                        value={
-                                            (activeNode.data as ScriptNodeData)
-                                                .language
-                                        }
-                                        onChange={(e) => {
-                                            const language = e.target.value as
-                                                | "python"
-                                                | "javascript";
-                                            setNodes((nds) =>
-                                                nds.map((n) =>
-                                                    n.id === activeNode.id
-                                                        ? {
-                                                              ...n,
-                                                              data: {
-                                                                  ...(n.data as ScriptNodeData),
-                                                                  language,
-                                                              },
-                                                          }
-                                                        : n
-                                                )
-                                            );
-                                        }}
-                                        style={{
-                                            padding: 6,
-                                            border: "1px solid #e5e7eb",
-                                            borderRadius: 6,
-                                        }}
-                                    >
-                                        <option value="python">Python</option>
-                                        <option value="javascript">
-                                            JavaScript
-                                        </option>
-                                    </select>
-                                </div>
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 6,
-                                    }}
-                                >
                                     <label style={{ fontSize: 12 }}>
                                         Загрузить файл
                                     </label>
                                     <input
                                         type="file"
-                                        accept=".py,.js,.pyw,.jsx,.ts,.tsx"
+                                        accept=".py,.pyw"
                                         onChange={(e) => {
                                             const file = e.target.files?.[0];
                                             if (!file) return;
-
-                                            const fileName =
-                                                file.name.toLowerCase();
-                                            const extension =
-                                                fileName.substring(
-                                                    fileName.lastIndexOf(".")
-                                                );
-
-                                            // Проверка формата
-                                            const pythonExtensions = [
-                                                ".py",
-                                                ".pyw",
-                                            ];
-                                            const jsExtensions = [
-                                                ".js",
-                                                ".jsx",
-                                                ".ts",
-                                                ".tsx",
-                                            ];
-
-                                            let detectedLanguage:
-                                                | "python"
-                                                | "javascript"
-                                                | null = null;
-
-                                            if (
-                                                pythonExtensions.includes(
-                                                    extension
-                                                )
-                                            ) {
-                                                detectedLanguage = "python";
-                                            } else if (
-                                                jsExtensions.includes(extension)
-                                            ) {
-                                                detectedLanguage = "javascript";
-                                            } else {
-                                                alert(
-                                                    `Неподдерживаемый формат файла: ${extension}\nПоддерживаются: .py, .pyw, .js, .jsx, .ts, .tsx`
-                                                );
-                                                return;
-                                            }
 
                                             const reader = new FileReader();
                                             reader.onload = (event) => {
@@ -1617,7 +1517,7 @@ const Editor: React.FC<{
                                                                       ...(n.data as ScriptNodeData),
                                                                       script: content,
                                                                       language:
-                                                                          detectedLanguage!,
+                                                                          "python",
                                                                   },
                                                               }
                                                             : n
@@ -1630,8 +1530,6 @@ const Editor: React.FC<{
                                                 );
                                             };
                                             reader.readAsText(file);
-
-                                            // Сброс input для возможности повторной загрузки того же файла
                                             e.target.value = "";
                                         }}
                                         style={{
@@ -1646,8 +1544,7 @@ const Editor: React.FC<{
                                             color: "#6b7280",
                                         }}
                                     >
-                                        Поддерживаются: .py, .pyw, .js, .jsx,
-                                        .ts, .tsx
+                                        Поддерживаются: .py, .pyw
                                     </div>
                                 </div>
                                 <div

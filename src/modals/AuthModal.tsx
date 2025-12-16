@@ -81,8 +81,14 @@ export default function AuthModal({
     };
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50" onClick={() => onClose?.()}>
-            <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md animate-fadeIn relative">
+        <div
+            className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"
+            onClick={() => onClose?.()}
+        >
+            <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md animate-fadeIn relative"
+            >
                 <button
                     onClick={() => onClose?.()}
                     className="absolute top-3 right-3 text-gray-700 hover:text-gray-900 text-2xl w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full shadow-sm hover:bg-gray-200"
