@@ -81,11 +81,13 @@ export default function AuthModal({
     };
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-            <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md animate-fadeIn">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50" onClick={() => onClose?.()}>
+            <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md animate-fadeIn relative">
                 <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-500 hover:text-gray-800"
+                    onClick={() => onClose?.()}
+                    className="absolute top-3 right-3 text-gray-700 hover:text-gray-900 text-2xl w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full shadow-sm hover:bg-gray-200"
+                    aria-label="Close"
+                    title="Закрыть"
                 >
                     &times;
                 </button>
@@ -163,7 +165,7 @@ export default function AuthModal({
                     <button
                         type="submit"
                         disabled={loading}
-                        className="bg-blue-500 text-white p-3 rounded-lg font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                        className="px-8 py-3 bg-sky-400 text-gray-900 font-bold text-lg rounded-lg shadow-md cursor-pointer transition-colors hover:bg-sky-300 disabled:opacity-50"
                     >
                         {loading
                             ? "Please wait..."
@@ -177,30 +179,7 @@ export default function AuthModal({
                     <div className="text-red-500 mt-3 text-sm">{error}</div>
                 )}
 
-                <div className="flex items-center my-4">
-                    <hr className="flex-1 border-gray-300" />
-                    <span className="mx-3 text-gray-400">or</span>
-                    <hr className="flex-1 border-gray-300" />
-                </div>
-
-                <div className="flex flex-col gap-3">
-                    <button
-                        type="button"
-                        onClick={() => (window.location.href = "#")}
-                        className="flex items-center justify-center gap-2 border border-gray-300 p-3 rounded-lg hover:bg-gray-100 transition"
-                    >
-                        <img src="#" alt="Google" className="w-5 h-5" />{" "}
-                        Continue with Google
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => (window.location.href = "#")}
-                        className="flex items-center justify-center gap-2 border border-gray-300 p-3 rounded-lg hover:bg-gray-100 transition"
-                    >
-                        <img src="#" alt="GitHub" className="w-5 h-5" />{" "}
-                        Continue with GitHub
-                    </button>
-                </div>
+                {/* OAuth buttons removed per request */}
             </div>
         </div>
     );

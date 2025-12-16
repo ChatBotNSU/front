@@ -47,6 +47,7 @@ import serializeToBackendChatbot from "../utils/serializeToBackendChatbot";
 import { deleteChatbot } from "../utils/chatbotApi";
 import PreviewModal from "../components/Preview/PreviewModal";
 import PublishModal from "../components/Publish/PublishModal";
+import ConfirmModal from "../components/ConfirmModal";
 import type { MenuItem } from "../types/menu";
 import type { Chatbot, NodeExport, Variable } from "../types/chatbot";
 
@@ -85,6 +86,7 @@ const Editor: React.FC<{
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
     const [showPreview, setShowPreview] = useState(false);
     const [showPublish, setShowPublish] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const onInit: OnInit = useCallback((instance) => {
@@ -971,76 +973,90 @@ const Editor: React.FC<{
         };
     }, [_chatbotId, token]);
 
-    const menuItems: MenuItem[] = [
+    const leftItems: MenuItem[] = [
         {
             label: "Экспорт",
             type: "button",
             variant: "secondary",
             onClick: exportGraph,
+            icon: "export",
         },
         {
             label: "Импорт",
             type: "button",
             variant: "secondary",
             onClick: importGraph,
+            icon: "import",
         },
-        ...(onBack
-            ? [
-                  {
-                      label: "← Назад",
-                      type: "button" as const,
-                      variant: "secondary" as const,
-                      onClick: onBack,
-                  },
-              ]
-            : []),
+    ];
+
+    const centerItems: MenuItem[] = [
         {
             label: "Сохранить",
             type: "button",
-            variant: "secondary",
+            variant: "primary",
             onClick: saveChatbot,
+            icon: "save",
         },
         {
             label: "Превью",
             type: "button",
             variant: "secondary",
             onClick: () => setShowPreview(true),
+            icon: "preview",
         },
         {
             label: "Опубликовать",
             type: "button",
             variant: "secondary",
             onClick: () => setShowPublish(true),
+            icon: "publish",
         },
+    ];
+
+    const rightItems: MenuItem[] = [
+        ...(onBack
+            ? [
+                  {
+                      label: "Назад",
+                      type: "button" as const,
+                      variant: "secondary" as const,
+                      onClick: onBack,
+                      icon: "back" as const,
+                  } as MenuItem,
+              ]
+            : []),
         {
             label: "Удалить",
             type: "button",
             variant: "danger",
-            onClick: async () => {
+            onClick: () => {
                 if (!_chatbotId || _chatbotId === "default") {
                     alert("Нет выбранного чатбота для удаления");
                     return;
                 }
-                if (
-                    !confirm(
-                        "Вы уверены, что хотите удалить этот чатбот? Это действие необратимо."
-                    )
-                )
-                    return;
-                try {
-                    await deleteChatbot(_chatbotId, token);
-                    alert("Чатбот успешно удалён");
-                    if (onBack) onBack();
-                    else window.location.href = "/";
-                } catch (err: any) {
-                    alert(
-                        "Ошибка при удалении чатбота: " +
-                            (err?.message ?? String(err))
-                    );
-                }
+                setShowDeleteConfirm(true);
             },
+            icon: "delete",
         },
     ];
+
+    const handleConfirmDelete = async () => {
+        if (!_chatbotId || _chatbotId === "default") return;
+        try {
+            await deleteChatbot(_chatbotId, token);
+            alert("Чатбот успешно удалён");
+            if (onBack) onBack();
+            else window.location.href = "/";
+        } catch (err: any) {
+            alert(
+                "Ошибка при удалении чатбота: " +
+                    (err?.message ?? String(err))
+            );
+        } finally {
+            setShowDeleteConfirm(false);
+        }
+    };
 
     return (
         <div
@@ -1051,7 +1067,17 @@ const Editor: React.FC<{
                 flexDirection: "column",
             }}
         >
-            <Navbar leftItems={[]} rightItems={menuItems} />
+            <ConfirmModal
+                isOpen={showDeleteConfirm}
+                title="Удалить чатбот"
+                message="Вы уверены, что хотите удалить этот чатбот? Это действие необратимо."
+                confirmLabel="Удалить"
+                cancelLabel="Отмена"
+                isDanger
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setShowDeleteConfirm(false)}
+            />
+            <Navbar leftItems={leftItems} centerItems={centerItems} rightItems={rightItems} hideBrand />
             <input
                 ref={fileInputRef}
                 type="file"

@@ -12,7 +12,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      // Forward preview endpoints to preview backend (running on 8081)
+
       "/api/v1/preview": {
         target: "http://localhost:8081",
         changeOrigin: true,

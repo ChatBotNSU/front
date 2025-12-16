@@ -147,15 +147,7 @@ const UserStorage: React.FC<{
     }, [token]);
 
     return (
-        <div
-            style={{
-                width: "100%",
-                minHeight: "100vh",
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                padding: "20px",
-                fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-            }}
-        >
+        <div className="relative w-full min-h-screen overflow-hidden bg-gray-900 p-8 font-sans">
             <div
                 style={{
                     display: "flex",
@@ -294,35 +286,7 @@ const UserStorage: React.FC<{
                             onClick={() => onSelectChatbot(bot.id)}
                             style={{ flex: 1 }}
                         >
-                            <h3
-                                style={{
-                                    margin: "0 0 8px 0",
-                                    color: "#333",
-                                    fontSize: "18px",
-                                }}
-                            >
-                                {bot.name}
-                            </h3>
-                            {bot.description && (
-                                <p
-                                    style={{
-                                        margin: "0 0 12px 0",
-                                        color: "#666",
-                                        fontSize: "14px",
-                                    }}
-                                >
-                                    {bot.description}
-                                </p>
-                            )}
-                            <p
-                                style={{
-                                    margin: "0",
-                                    color: "#999",
-                                    fontSize: "12px",
-                                }}
-                            >
-                                Created: {bot.createdAt}
-                            </p>
+                            <h3 className="text-lg font-semibold text-gray-800 mb-2">{bot.name}</h3>
                         </div>
                         <div
                             style={{

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Navbar from "../components/Navbar";
+// removed top navbar per design: greetings page should be clean with single action
 import Grid from "../components/Grid";
 import OverlayText from "../components/OverlayText";
 import OverlayButton from "../components/OverlayButton";
@@ -14,30 +14,11 @@ export default function Greetings({
     const cols = 16;
     const [hovered, setHovered] = useState<number | null>(null);
 
-    const leftMenu: MenuItem[] = [
-        { label: "Docs", href: "#", type: "link" },
-        { label: "Examples", href: "#", type: "link" },
-    ];
-
-    const rightMenu: MenuItem[] = [
-        { label: "Contact", href: "#", type: "link" },
-        {
-            label: "Log in",
-            type: "button",
-            variant: "secondary",
-            onClick: () => onOpenAuth?.("login"),
-        },
-        {
-            label: "Sign up",
-            type: "button",
-            variant: "primary",
-            onClick: () => onOpenAuth?.("signup"),
-        },
-    ];
+    // top menu removed
 
     return (
         <>
-            <Navbar leftItems={leftMenu} rightItems={rightMenu} />
+            {/* Navbar removed - clean welcome screen */}
             <div className="relative w-full h-screen overflow-hidden bg-gray-900">
                 <Grid
                     rows={rows}
@@ -47,10 +28,7 @@ export default function Greetings({
                 />
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-9 pointer-events-none">
                     <OverlayText text="ChatBotEditor" />
-                    <OverlayButton
-                        label="Начнём!"
-                        onClick={() => onOpenAuth?.("login")}
-                    />
+                    <OverlayButton label="Войти" onClick={() => onOpenAuth?.("login") } />
                 </div>
             </div>
         </>
