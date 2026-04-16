@@ -12,11 +12,8 @@ export default function Greetings({
     const cols = 16;
     const [hovered, setHovered] = useState<number | null>(null);
 
-    // top menu removed
-
     return (
         <>
-            {/* Navbar removed - clean welcome screen */}
             <div className="relative w-full h-screen overflow-hidden bg-gray-900">
                 <Grid
                     rows={rows}

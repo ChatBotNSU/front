@@ -75,13 +75,22 @@ export default function serializeToBackendChatbot(chatbot: Chatbot) {
             const t = b.bodyData?.text ?? b.text ?? "";
             texts.push(t);
           } else if (b.type === "image") {
-            images.push(b.bodyData ?? b);
+            const imageUrls = b.bodyData
+              .filter((img: any) => img.url && !img.isVariable)
+              .map((img: any) => img.url);
+            images.push(...imageUrls);
           } else if (b.type === "audio") {
-            audios.push(b.bodyData ?? b);
-          } else if (b.type === "file") {
-            files.push(b.bodyData ?? b);
+            const url = b.bodyData?.url ?? b.url;
+            if (typeof url === "string") audios.push(url);
+          } else if (b.type === "file" || b.type === "document") {
+            const path = b.bodyData?.path ?? b.path;
+            if (typeof path === "string") files.push(path);
           } else if (b.type === "choices" || b.type === "choice") {
             choise_options.push(...(b.options || b.choice_options || []));
+          } else if (b.type === "buttons" || b.type === "button") {
+            // frontend may store buttons under bodyData.buttons or directly as buttons
+            const list = b.bodyData?.buttons ?? b.buttons ?? b.options ?? b.choice_options ?? [];
+            choise_options.push(...list);
           }
         });
 
@@ -90,7 +99,19 @@ export default function serializeToBackendChatbot(chatbot: Chatbot) {
         inner.images = images;
         inner.audios = audios;
         inner.files = files;
-        inner.choise_options = choise_options;
+        // Normalize choice options to simple strings (backend expects strings)
+        inner.choise_options = (choise_options || []).map((opt) => {
+          if (opt == null) return "";
+          if (typeof opt === "string") return opt;
+          if (typeof opt === "object") {
+            // prefer `label` field if present
+            if (Object.prototype.hasOwnProperty.call(opt, "label")) return String(opt.label ?? "");
+            // fallback to `value` or stringify
+            if (Object.prototype.hasOwnProperty.call(opt, "value")) return String(opt.value ?? "");
+            return String(opt);
+          }
+          return String(opt);
+        });
 
         break;
       case "wait":
@@ -161,10 +182,12 @@ export default function serializeToBackendChatbot(chatbot: Chatbot) {
   outgoing.forEach((arr, sourceId) => {
     if (!out.graph.nodes[sourceId]) return;
     const nodeObj = out.graph.nodes[sourceId] as Record<string, any>;
-    // If the node has any outgoing edges and doesn't yet have next_node_id, set it to the first target.
-    // This ensures newly created connections are reflected as next_node_id instead of leaving it empty.
-    if (arr.length > 0 && (!nodeObj.next_node_id || nodeObj.next_node_id === "")) {
-      // Set next_node_id to the first outgoing target unconditionally (helps for newly created nodes)
+    // If the node has any outgoing edges and doesn't yet have a valid next_node_id, set it to the first target.
+    // Treat empty, null, undefined and the string "0" as invalid values that should be replaced.
+    const curNext = nodeObj.next_node_id;
+    const isInvalidNext = curNext === undefined || curNext === null || curNext === "" || curNext === 0 || curNext === "0";
+    if (arr.length > 0 && isInvalidNext) {
+      // Set next_node_id to the first outgoing target (helps for newly created nodes and fixes '0' placeholder)
       nodeObj.next_node_id = String(arr[0].target);
     }
   });
@@ -176,6 +199,53 @@ export default function serializeToBackendChatbot(chatbot: Chatbot) {
     sourceHandle: e.sourceHandle,
     targetHandle: e.targetHandle,
   }));
+
+  // Second pass: ensure nodes have next_node_id from explicit edges when missing or invalid.
+  // This is a defensive step in case outgoing map keys didn't match node keys earlier.
+  out.graph.edges.forEach((e: any) => {
+    const src = String(e.source);
+    const tgt = String(e.target);
+    const node = out.graph.nodes[src] as Record<string, any> | undefined;
+    if (!node) return;
+    // If this is a condition node, try to map edge sourceHandle -> branches[index].next_node_id
+    if (node.type === "condition") {
+      const srcHandle = e.sourceHandle ?? "";
+      const m = String(srcHandle).match(/bottom-(\d+)/i);
+      if (m) {
+        const idx = Number(m[1]);
+        node.branches = node.branches || [];
+        if (!node.branches[idx]) node.branches[idx] = { condition: {}, next_node_id: String(tgt) };
+        else node.branches[idx].next_node_id = String(tgt);
+        return;
+      }
+
+      if (String(srcHandle).toLowerCase().includes("default") || String(srcHandle).toLowerCase() === "bottom" || String(srcHandle).toLowerCase() === "bottom-default") {
+        node.default_next_node_id = String(tgt);
+        return;
+      }
+
+      // Fallback: assign to the first branch missing next_node_id, or to default if none
+      node.branches = node.branches || [];
+      const emptyIdx = node.branches.findIndex((b: any) => !b || b.next_node_id === undefined || b.next_node_id === null || b.next_node_id === "" || b.next_node_id === "0");
+      if (emptyIdx >= 0) {
+        node.branches[emptyIdx] = node.branches[emptyIdx] || { condition: {} };
+        node.branches[emptyIdx].next_node_id = String(tgt);
+        return;
+      }
+      if (!node.default_next_node_id) node.default_next_node_id = String(tgt);
+      return;
+    }
+
+    const curNext = node.next_node_id;
+    const isInvalidNext = curNext === undefined || curNext === null || curNext === "" || curNext === 0 || curNext === "0";
+    if (isInvalidNext) {
+      try {
+        // eslint-disable-next-line no-console
+        console.debug && console.debug("serializeToBackendChatbot: setting next_node_id from edges", src, "->", tgt);
+      } catch (err) {}
+      node.next_node_id = tgt;
+    }
+  });
 
   // Diagnostic: detect suspicious next_node_id values like "0" and warn
   Object.keys(out.graph.nodes).forEach((k) => {

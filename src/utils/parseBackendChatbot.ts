@@ -43,12 +43,12 @@ export default function parseBackendChatbot(payload: any): Chatbot {
                 case "setmessage": {
                     const bodies: any[] = [];
                     if (n.text) bodies.push({ type: "text", bodyData: { text: n.text } });
-                    if (Array.isArray(n.images)) bodies.push(...n.images.map((url: string) => ({ type: "image", bodyData: { url, isVariable: false } })));
+                    if (Array.isArray(n.images)) bodies.push({ type: "image", bodyData: n.images.map((url: string) => ({ url, isVariable: false })) });
                     if (Array.isArray(n.files)) bodies.push(...n.files.map((path: string) => ({ type: "file", bodyData: { path, isVariable: false } })));
-                    // support choice options -> buttons
-                    if (Array.isArray(n.choise_options) || Array.isArray(n.choice_options)) {
-                        const list = n.choise_options ?? n.choice_options;
-                        bodies.push({ type: "buttons", bodyData: { buttons: list.map((b: any) => ({ label: String(b.label ?? b) })) } });
+                    // support choice options -> buttons (only if not empty)
+                    const choiceList = n.choise_options ?? n.choice_options;
+                    if (Array.isArray(choiceList) && choiceList.length > 0) {
+                        bodies.push({ type: "buttons", bodyData: { buttons: choiceList.map((b: any) => ({ label: String(b.label ?? b) })) } });
                     }
 
                     nodesRecord[id] = {
@@ -76,9 +76,32 @@ export default function parseBackendChatbot(payload: any): Chatbot {
                         delay: n.delay ?? n.wait_time ?? n.waitTime ?? 0,
                     } as NodeExport;
                     break;
-                case "condition":
-                    nodesRecord[id] = { node_id: id, type: "condition", ...(n.position ? { position: n.position } : {}), branches: n.branches ?? [] } as NodeExport;
+                case "condition": {
+                    const rawBranches = n.branches ?? n.data?.branches ?? [];
+                    const branches = (rawBranches || []).map((b: any) => {
+                        const cond = b.condition ?? b;
+                        const variable = cond.variable ?? cond.variable_left ?? cond.left ?? "";
+                        const operator = cond.operator ?? cond.operation ?? cond.op ?? "==";
+                        const value = cond.value ?? cond.variable_right ?? cond.right ?? "";
+                        return {
+                            condition: {
+                                variable,
+                                operator,
+                                value,
+                            },
+                            next_node_id: String(b.next_node_id ?? b.next ?? b.target ?? ""),
+                        };
+                    });
+
+                    nodesRecord[id] = {
+                        node_id: id,
+                        type: "condition",
+                        ...(n.position ? { position: n.position } : {}),
+                        branches,
+                        default_next_node_id: String(n.default_next_node_id ?? n.defaultNext ?? n.default_next ?? n.next_node_id ?? ""),
+                    } as NodeExport;
                     break;
+                }
                 case "script":
                 case "script_execution":
                     nodesRecord[id] = {
@@ -113,6 +136,38 @@ export default function parseBackendChatbot(payload: any): Chatbot {
             const src = toNumberId(e.source);
             const tgt = toNumberId(e.target);
             edges.push({ source: src, target: tgt, sourceHandle: e.sourceHandle, targetHandle: e.targetHandle });
+        }
+    }
+
+    // Reconcile condition branches from explicit edges: if an edge has sourceHandle like "bottom-<index>",
+    // assign that target to the corresponding branch.next_node_id. Also set default_next_node_id when appropriate.
+    for (const e of edges) {
+        const src = e.source;
+        const tgt = e.target;
+        const srcHandle = e.sourceHandle ?? "";
+        const node = nodesRecord[src] as any;
+        if (!node) continue;
+        if (node.type === "condition") {
+            // match handles like bottom-0, bottom-1
+            const m = String(srcHandle).match(/bottom-(\d+)/i);
+            if (m) {
+                const idx = Number(m[1]);
+                node.branches = node.branches || [];
+                // ensure branch exists
+                if (!node.branches[idx]) {
+                    node.branches[idx] = { condition: {}, next_node_id: String(tgt) };
+                } else {
+                    // set next_node_id (overwrite empty/undefined)
+                    node.branches[idx].next_node_id = String(tgt);
+                }
+                continue;
+            }
+
+            // some backends may not encode index; treat plain 'bottom' or 'default' as default branch
+            if (String(srcHandle).toLowerCase().includes("default") || String(srcHandle).toLowerCase() === "bottom" || String(srcHandle).toLowerCase() === "bottom-default") {
+                node.default_next_node_id = String(tgt);
+                continue;
+            }
         }
     }
 

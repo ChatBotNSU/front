@@ -16,7 +16,37 @@ interface BaseNodeProps<T extends BaseNodeData> {
     handlesConfig?: HandleConfig[];
     handleLabels?: Partial<Record<RFPosition, string[]>>;
     showBottomIndices?: boolean;
+    hideDefaultLabel?: boolean;
 }
+
+const ArrowDown = () => (
+    <div
+        style={{
+            width: 16,
+            height: 16,
+            borderTopLeftRadius: 0,
+            borderTopRightRadius: 0,
+            borderBottomLeftRadius: 4,
+            borderBottomRightRadius: 4,
+            border: "2px solid #2563eb",
+            background: "#ffffff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+        }}
+    >
+        <svg width="20" height="20" viewBox="0 0 24 24">
+            <path
+                d="M12 6v12M12 18l-6-6M12 18l6-6"
+                stroke="#3b82f6"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+            />
+        </svg>
+    </div>
+);
 
 const BaseNode = <T extends BaseNodeData>({
     data,
@@ -26,13 +56,13 @@ const BaseNode = <T extends BaseNodeData>({
         { count: 1, position: RFPosition.Top },
         { count: 1, position: RFPosition.Bottom },
     ],
-    handleLabels,
     showBottomIndices = false,
+    hideDefaultLabel = false,
 }: BaseNodeProps<T>) => {
-    const baseStyle = {
+    const baseStyle: React.CSSProperties = {
         padding: 12,
-        borderRadius: 8,
-        border: "2px solid #333",
+        borderRadius: 24,
+        border: "2px dashed #3B82F6",
         background: "#f9f9f9",
         position: "relative",
         minWidth: 180,
@@ -83,18 +113,18 @@ const BaseNode = <T extends BaseNodeData>({
             if (position === RFPosition.Bottom) {
                 style = {
                     ...style,
-                    bottom: -20,
-                    width: 40,
-                    height: 40,
+                    bottom: -8,
+                    width: 16,
+                    height: 16,
                     opacity: 0, // кликаем по кружку, центр совпадает
                 } as React.CSSProperties;
             }
             if (position === RFPosition.Top) {
                 style = {
                     ...style,
-                    top: -20,
-                    width: 40,
-                    height: 40,
+                    top: -8,
+                    width: 16,
+                    height: 16,
                     opacity: 0,
                 } as React.CSSProperties;
             }
@@ -111,7 +141,7 @@ const BaseNode = <T extends BaseNodeData>({
                     position={position}
                     style={style}
                     id={`${position}-${i}`}
-                />
+                />,
             );
 
             // Отрисовать стрелки и индексы для входа/выхода
@@ -120,7 +150,7 @@ const BaseNode = <T extends BaseNodeData>({
                     position: "absolute",
                     left: `${percent}%`,
                     transform: "translateX(-50%)",
-                    bottom: -24,
+                    bottom: -8,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -136,9 +166,9 @@ const BaseNode = <T extends BaseNodeData>({
                             key={`${position}-label-${i}`}
                             style={containerStyle}
                         >
-                            <div>▼</div>
+                            <ArrowDown />
                             <div>{i + 1}</div>
-                        </div>
+                        </div>,
                     );
                 } else {
                     handles.push(
@@ -146,8 +176,8 @@ const BaseNode = <T extends BaseNodeData>({
                             key={`${position}-label-${i}`}
                             style={containerStyle}
                         >
-                            <div>▼</div>
-                        </div>
+                            <ArrowDown />
+                        </div>,
                     );
                 }
             }
@@ -156,7 +186,7 @@ const BaseNode = <T extends BaseNodeData>({
                     position: "absolute",
                     left: `${percent}%`,
                     transform: "translateX(-50%)",
-                    top: -18,
+                    top: -8,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -167,8 +197,8 @@ const BaseNode = <T extends BaseNodeData>({
                 };
                 handles.push(
                     <div key={`${position}-label-${i}`} style={containerStyle}>
-                        ▲
-                    </div>
+                        <ArrowDown />
+                    </div>,
                 );
             }
         }
@@ -177,8 +207,20 @@ const BaseNode = <T extends BaseNodeData>({
     };
 
     return (
-        <div style={baseStyle as any}>
-            {data.label && <div style={{ marginBottom: 8 }}>{data.label}</div>}
+        <div style={baseStyle}>
+            {!hideDefaultLabel && data.label && (
+                <div
+                    style={{
+                        marginBottom: 8,
+                        width: "100%",
+                        display: "flex",
+                        justifyContent: "center",
+                        textAlign: "center",
+                    }}
+                >
+                    {data.label}
+                </div>
+            )}
             {children}
             {handlesConfig.flatMap((h) => createHandles(h.count, h.position))}
         </div>

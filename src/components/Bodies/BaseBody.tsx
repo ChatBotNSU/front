@@ -1,30 +1,22 @@
-import React from "react";
+import React, { useState } from "react";
+import { IconX } from "@tabler/icons-react";
 
 interface BaseBodyProps {
     title?: string;
-    editable?: boolean;
-    onAddBlock?: () => void;
     onDelete?: () => void;
-    onEditToggle?: () => void;
     children: React.ReactNode;
 }
 
-const BaseBody: React.FC<BaseBodyProps> = ({
-    title,
-    editable = false,
-    onAddBlock,
-    onDelete,
-    onEditToggle,
-    children,
-}) => {
+const BaseBody: React.FC<BaseBodyProps> = ({ title, onDelete, children }) => {
+    const [hovered, setHovered] = useState(false);
+
     return (
         <div
             style={{
                 background: "#fff",
-                borderRadius: 8,
-                border: "1px solid #ddd",
+                borderRadius: 16,
+                border: "2px solid #3B82F6",
                 padding: 10,
-                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                 position: "relative",
             }}
         >
@@ -33,7 +25,6 @@ const BaseBody: React.FC<BaseBodyProps> = ({
                 <div
                     style={{
                         fontSize: 14,
-                        fontWeight: 600,
                         marginBottom: 8,
                         display: "flex",
                         justifyContent: "space-between",
@@ -42,43 +33,32 @@ const BaseBody: React.FC<BaseBodyProps> = ({
                 >
                     <span>{title}</span>
                     <div style={{ display: "flex", gap: 4 }}>
-                        {onEditToggle && (
-                            <button onClick={onEditToggle} style={buttonStyle}>
-                                ✏️
-                            </button>
-                        )}
-                        {onAddBlock && (
-                            <button onClick={onAddBlock} style={buttonStyle}>
-                                ➕
-                            </button>
-                        )}
                         {onDelete && (
                             <button
                                 onClick={onDelete}
-                                style={{ ...buttonStyle, color: "red" }}
+                                style={{
+                                    ...buttonStyle,
+                                    color: "#ef4444",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                }}
                             >
-                                ❌
+                                <IconX
+                                    size={16}
+                                    stroke={2}
+                                    color={hovered ? "#ef4444" : "#8B8B8B"}
+                                    onMouseEnter={() => setHovered(true)}
+                                    onMouseLeave={() => setHovered(false)}
+                                    style={{ cursor: "pointer" }}
+                                />{" "}
                             </button>
                         )}
                     </div>
                 </div>
             )}
 
-            {/* Само содержимое */}
             <div style={{ paddingTop: 4 }}>{children}</div>
-
-            {/* Если editable — можно подсветить */}
-            {editable && (
-                <div
-                    style={{
-                        position: "absolute",
-                        inset: 0,
-                        borderRadius: 8,
-                        border: "1px dashed #aaa",
-                        pointerEvents: "none",
-                    }}
-                />
-            )}
         </div>
     );
 };

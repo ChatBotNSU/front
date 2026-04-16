@@ -1,29 +1,54 @@
-import React from "react";
+// TODO: обновить
+import BaseBody from "./BaseBody";
 
 interface DocumentBodyProps {
     data: { path: string; isVariable: boolean };
     onChange: (data: { path: string; isVariable: boolean }) => void;
+    onDelete?: () => void;
 }
 
-const DocumentBody: React.FC<DocumentBodyProps> = ({ data, onChange }) => {
+const DocumentBody: React.FC<DocumentBodyProps> = ({
+    data,
+    onChange,
+    onDelete,
+}) => {
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+        <BaseBody title="Файл" onDelete={onDelete}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label
+                    style={{
+                        fontSize: 11,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                    }}
+                >
+                    <input
+                        type="checkbox"
+                        checked={data.isVariable}
+                        onChange={(e) =>
+                            onChange({ ...data, isVariable: e.target.checked })
+                        }
+                    />
+                    <span>Переменная</span>
+                </label>
                 <input
-                    type="checkbox"
-                    checked={data.isVariable}
-                    onChange={(e) => onChange({ ...data, isVariable: e.target.checked })}
+                    type="text"
+                    value={data.path}
+                    onChange={(e) =>
+                        onChange({ ...data, path: e.target.value })
+                    }
+                    placeholder={
+                        data.isVariable ? "Имя переменной" : "Путь до файла"
+                    }
+                    style={{
+                        padding: 6,
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 6,
+                    }}
                 />
-                <span>Переменная</span>
-            </label>
-            <input
-                type="text"
-                value={data.path}
-                onChange={(e) => onChange({ ...data, path: e.target.value })}
-                placeholder={data.isVariable ? "Имя переменной" : "Путь до файла"}
-                style={{ padding: 6, border: "1px solid #e5e7eb", borderRadius: 6 }}
-            />
-        </div>
+            </div>
+        </BaseBody>
     );
 };
 

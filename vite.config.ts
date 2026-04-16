@@ -8,19 +8,18 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/v1/telegram": {
-        target: "http://localhost:8082",
+        target: "http://localhost:8182",
         changeOrigin: true,
         secure: false,
       },
 
       "/api/v1/preview": {
-        target: "http://localhost:8081",
+        target: "http://localhost:8181",
         changeOrigin: true,
         secure: false,
       },
-      // Forward /api requests to backend running on localhost:8080 during development
       "/api": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8180",
         changeOrigin: true,
         secure: false,
       },

@@ -1,15 +1,15 @@
 import type { MenuItem } from "../types/menu";
 
 export default function Navbar({
+    returnItem,
     leftItems,
     centerItems,
     rightItems,
-    hideBrand,
 }: {
-    leftItems?: MenuItem[];
-    centerItems?: MenuItem[];
-    rightItems?: MenuItem[];
-    hideBrand?: boolean;
+    returnItem?: MenuItem | null; // back to dashboard
+    leftItems?: MenuItem[]; // export, import
+    centerItems?: MenuItem[]; // main actions
+    rightItems?: MenuItem[]; // publish, preview
 }) {
     const Icon = ({ name }: { name?: string }) => {
         if (!name) return null;
@@ -194,31 +194,26 @@ export default function Navbar({
     };
 
     const renderButton = (item: MenuItem) => (
-        <button
-            onClick={item.onClick}
-            className={
-                item.variant === "primary"
-                    ? "px-4 py-1 rounded-full bg-sky-400 hover:bg-sky-300 text-gray-900 flex items-center gap-2"
-                    : item.variant === "danger"
-                    ? "px-3 py-1 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center gap-2"
-                    : "px-4 py-1 rounded-full border border-gray-500 hover:bg-gray-800 flex items-center gap-2"
-            }
-        >
-            <Icon name={item.icon} />
-            <span>{item.label}</span>
-        </button>
+        <div className="inline-block rounded-[20px] border-4 border-black bg-white p-2">
+            <button
+                onClick={item.onClick}
+                className="px-6 py-2 rounded-[10px] bg-gray-300 hover:bg-gray-400 text-black flex items-center gap-2"
+            >
+                <Icon name={item.icon} />
+                <span>{item.label}</span>
+            </button>
+        </div>
     );
 
     return (
-        <nav className="w-full bg-gray-900 text-white flex items-center justify-between px-6 py-3 z-10 flex-shrink-0">
+        <nav
+            style={{ background: "#E2E8F0" }}
+            className="w-full  text-white flex items-center justify-between px-6 py-3 z-10 flex-shrink-0"
+        >
             <div className="flex items-center gap-2">
-                {!hideBrand && (
-                    <>
-                        <img src="#" alt="chatbot-logo" className="h-8" />
-                        <span className="font-bold">ChatBot Editor</span>
-                    </>
-                )}
-                {/** Left items */}
+                {returnItem && renderButton(returnItem)}
+            </div>
+            <div className="flex items-center gap-2">
                 {leftItems?.map((item, idx) => (
                     <div key={idx} className="ml-4">
                         {item.type === "button" ? (

@@ -1,3 +1,4 @@
+// TODO: разобраться как вообще должно работать
 import React from "react";
 
 export interface ButtonItem {
@@ -7,9 +8,14 @@ export interface ButtonItem {
 interface ButtonsBodyProps {
     buttons: ButtonItem[];
     onChange: (buttons: ButtonItem[]) => void;
+    onDelete?: () => void;
 }
 
-const ButtonsBody: React.FC<ButtonsBodyProps> = ({ buttons, onChange }) => {
+const ButtonsBody: React.FC<ButtonsBodyProps> = ({
+    buttons,
+    onChange,
+    onDelete,
+}) => {
     const updateLabel = (index: number, label: string) => {
         const next = [...buttons];
         next[index] = { label };
@@ -26,76 +32,117 @@ const ButtonsBody: React.FC<ButtonsBodyProps> = ({ buttons, onChange }) => {
     };
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {buttons.map((btn, idx) => (
-                <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <div
-                        title={`Выход ${idx + 1}`}
-                        style={{
-                            minWidth: 22,
-                            height: 22,
-                            borderRadius: 11,
-                            background: "#e5e7eb",
-                            color: "#111827",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 12,
-                            fontWeight: 700,
-                        }}
-                    >
-                        {idx + 1}
-                    </div>
-                    <input
-                        value={btn.label || ""}
-                        onChange={(e) => updateLabel(idx, e.target.value)}
-                        placeholder={`Кнопка ${idx + 1}`}
-                        style={{
-                            flex: 1,
-                            padding: 6,
-                            border: "1px solid #e5e7eb",
-                            borderRadius: 6,
-                        }}
-                    />
-                    {buttons.length > 1 && (
-                        <button
-                            type="button"
-                            onClick={() => removeButton(idx)}
-                            style={{
-                                padding: "4px 8px",
-                                fontSize: 11,
-                                background: "#ef4444",
-                                color: "white",
-                                border: "none",
-                                borderRadius: 4,
-                                cursor: "pointer",
-                            }}
-                        >
-                            ×
-                        </button>
-                    )}
-                </div>
-            ))}
-            <button
-                type="button"
-                onClick={addButton}
+        <div
+            style={{
+                background: "#fff",
+                borderRadius: 8,
+                border: "1px solid #ddd",
+                padding: 10,
+                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+            }}
+        >
+            <div
                 style={{
-                    padding: "6px 12px",
-                    fontSize: 12,
-                    background: "#10b981",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    fontWeight: 500,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    marginBottom: 8,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                 }}
             >
-                + Добавить кнопку
-            </button>
+                <span>Кнопки</span>
+                {onDelete && (
+                    <button
+                        onClick={onDelete}
+                        style={{
+                            background: "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: 14,
+                            color: "red",
+                        }}
+                    >
+                        ❌
+                    </button>
+                )}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {buttons.map((btn, idx) => (
+                    <div
+                        key={idx}
+                        style={{
+                            display: "flex",
+                            gap: 8,
+                            alignItems: "center",
+                        }}
+                    >
+                        <div
+                            title={`Выход ${idx + 1}`}
+                            style={{
+                                minWidth: 22,
+                                height: 22,
+                                borderRadius: 11,
+                                background: "#e5e7eb",
+                                color: "#111827",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 12,
+                                fontWeight: 700,
+                            }}
+                        >
+                            {idx + 1}
+                        </div>
+                        <input
+                            value={btn.label || ""}
+                            onChange={(e) => updateLabel(idx, e.target.value)}
+                            placeholder={`Кнопка ${idx + 1}`}
+                            style={{
+                                flex: 1,
+                                padding: 6,
+                                border: "1px solid #e5e7eb",
+                                borderRadius: 6,
+                            }}
+                        />
+                        {buttons.length > 1 && (
+                            <button
+                                type="button"
+                                onClick={() => removeButton(idx)}
+                                style={{
+                                    padding: "4px 8px",
+                                    fontSize: 11,
+                                    background: "#ef4444",
+                                    color: "white",
+                                    border: "none",
+                                    borderRadius: 4,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                ×
+                            </button>
+                        )}
+                    </div>
+                ))}
+                <button
+                    type="button"
+                    onClick={addButton}
+                    style={{
+                        padding: "6px 12px",
+                        fontSize: 12,
+                        background: "#10b981",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        fontWeight: 500,
+                    }}
+                >
+                    + Добавить кнопку
+                </button>
+            </div>
         </div>
     );
 };
 
 export default ButtonsBody;
-
-

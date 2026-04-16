@@ -1,9 +1,10 @@
+// TODO: перенести из сайд бара в тулбар
 import React, { useMemo, useState } from "react";
 
 const NODE_ITEMS = [
-    { key: "setmessage", label: "Set Message" },
-    { key: "wait", label: "Wait" },
-    { key: "sendmessage", label: "Send Message" },
+    { key: "setmessage", label: "Задать сообщение" },
+    { key: "wait", label: "Тайм-аут" },
+    { key: "sendmessage", label: "Отправка сообщения пользователю   " },
     { key: "condition", label: "Condition" },
     { key: "script", label: "Script Node" },
     { key: "setvar", label: "Set Var" },
@@ -44,19 +45,19 @@ const NodeBar: React.FC<NodeBarProps> = ({ activeNodeType }) => {
 
     const onDragNodeStart = (
         e: React.DragEvent<HTMLDivElement>,
-        nodeType: NodeType
+        nodeType: NodeType,
     ) => {
         const payload = { nodeType };
         e.dataTransfer.setData(
             "application/reactflow",
-            JSON.stringify(payload)
+            JSON.stringify(payload),
         );
         e.dataTransfer.effectAllowed = "move";
     };
 
     const onDragBodyStart = (
         e: React.DragEvent<HTMLDivElement>,
-        bodyType: BodyType
+        bodyType: BodyType,
     ) => {
         if (!activeNodeType || bodyList.length === 0) {
             // shouldn't happen because we disable draggable, but be safe
@@ -67,7 +68,7 @@ const NodeBar: React.FC<NodeBarProps> = ({ activeNodeType }) => {
         const payload = { nodeType: activeNodeType, bodyType };
         e.dataTransfer.setData(
             "application/reactflow",
-            JSON.stringify(payload)
+            JSON.stringify(payload),
         );
         e.dataTransfer.effectAllowed = "move";
     };
@@ -104,7 +105,8 @@ const NodeBar: React.FC<NodeBarProps> = ({ activeNodeType }) => {
                 <h3 className="text-sm font-semibold mb-2">Bodies</h3>
                 <div className="flex flex-col gap-2">
                     {bodyList.map((b) => {
-                        const disabled = !activeNodeType || bodyList.length === 0;
+                        const disabled =
+                            !activeNodeType || bodyList.length === 0;
                         return (
                             <div
                                 key={b.key}
@@ -120,8 +122,8 @@ const NodeBar: React.FC<NodeBarProps> = ({ activeNodeType }) => {
                                     disabled
                                         ? "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed"
                                         : selectedBody === b.key
-                                        ? "border-green-500 bg-green-50"
-                                        : "border-gray-200 bg-white cursor-grab"
+                                          ? "border-green-500 bg-green-50"
+                                          : "border-gray-200 bg-white cursor-grab"
                                 }`}
                             >
                                 <div className="text-sm">{b.label}</div>

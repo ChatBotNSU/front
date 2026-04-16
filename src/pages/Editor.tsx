@@ -2,7 +2,6 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import "react-flow-renderer/dist/style.css";
 import ReactFlow, {
     Background,
-    Controls,
     type Edge,
     type Node,
     type OnInit,
@@ -44,7 +43,6 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import parseBackendChatbot from "../utils/parseBackendChatbot";
 import serializeToBackendChatbot from "../utils/serializeToBackendChatbot";
-import { deleteChatbot } from "../utils/chatbotApi";
 import PreviewModal from "../components/Preview/PreviewModal";
 import PublishModal from "../components/Publish/PublishModal";
 import type { MenuItem } from "../types/menu";
@@ -131,7 +129,7 @@ const Editor: React.FC<{
                         next_node_id: String(target),
                     },
                 };
-            })
+            }),
         );
     }, []);
 
@@ -167,7 +165,7 @@ const Editor: React.FC<{
                 let data: any = {};
                 if (nodeType === "setmessage") {
                     data = {
-                        label: "Set Message",
+                        label: "Задать сообщение",
                         bodies: [],
                         // ensure backend-required fields exist
                         text: "",
@@ -179,13 +177,13 @@ const Editor: React.FC<{
                     } as SetMessageNodeData;
                 } else if (nodeType === "wait") {
                     data = {
-                        label: "Wait",
+                        label: "Тайм-аут",
                         delay: 1,
                         next_node_id: "",
                     } as WaitNodeData;
                 } else if (nodeType === "sendmessage") {
                     data = {
-                        label: "Send Message",
+                        label: "Отправка сообщения пользователю",
                         next_node_id: "",
                     } as SendMessageNodeData;
                 } else if (nodeType === "condition") {
@@ -262,7 +260,7 @@ const Editor: React.FC<{
                         } else if (bodyType === "image") {
                             newBody = {
                                 type: "image",
-                                bodyData: { url: "", isVariable: false },
+                                bodyData: [],
                             };
                         } else if (bodyType === "file") {
                             newBody = {
@@ -270,6 +268,7 @@ const Editor: React.FC<{
                                 bodyData: { path: "", isVariable: false },
                             };
                         } else if (bodyType === "buttons") {
+                            console.log("eto beda");
                             newBody = {
                                 type: "buttons",
                                 bodyData: { buttons: [{ label: "Кнопка 1" }] },
@@ -282,15 +281,14 @@ const Editor: React.FC<{
                                 bodies: [...data.bodies, newBody],
                             },
                         };
-                    })
+                    }),
                 );
             }
         },
-        [activeNodeId]
+        [activeNodeId],
     );
 
     const activeNode = nodes.find((n) => n.id === activeNodeId) || null;
-
     const exportGraph = useCallback(() => {
         if (nodes.length === 0) {
             alert("Нет нод для экспорта");
@@ -429,19 +427,25 @@ const Editor: React.FC<{
                         headers: {
                             Authorization: token ? `Bearer ${token}` : "",
                         },
-                    }
+                    },
                 );
                 const json = await res.json();
                 if (!res.ok)
                     throw new Error(
                         json?.detail ||
                             json?.message ||
-                            "Failed to load chatbot"
+                            "Failed to load chatbot",
                     );
                 const payload = json?.chatbot ?? json;
 
                 // Normalize backend payload to internal Chatbot format
                 const chat = parseBackendChatbot(payload);
+                try {
+                    // eslint-disable-next-line no-console
+                    console.debug("Loaded chatbot payload:", payload);
+                    // eslint-disable-next-line no-console
+                    console.debug("Parsed chatbot object:", chat);
+                } catch (e) {}
                 if (!mounted) return;
 
                 setVariables(chat.variables || []);
@@ -458,7 +462,7 @@ const Editor: React.FC<{
                     switch (nodeExport.type) {
                         case "setmessage":
                             data = {
-                                label: "Set Message",
+                                label: "Задать сообщение",
                                 bodies: nodeExport.bodies || [],
                             };
                             break;
@@ -469,7 +473,7 @@ const Editor: React.FC<{
                             };
                             break;
                         case "sendmessage":
-                            data = { label: "Send Message" };
+                            data = { label: "Отправка сообщения пользователю" };
                             break;
                         case "condition":
                             data = {
@@ -532,6 +536,59 @@ const Editor: React.FC<{
                     });
                 }
 
+                // Defensive: if condition nodes contain branches with next_node_id, ensure edges exist for them
+                nodesArr.forEach((nodeExport: any) => {
+                    if (nodeExport.type !== "condition") return;
+                    const srcId = String(nodeExport.node_id);
+                    const branches = Array.isArray(nodeExport.branches)
+                        ? nodeExport.branches
+                        : [];
+                    branches.forEach((br: any, idx: number) => {
+                        const tgt = br?.next_node_id ?? br?.next ?? br?.target;
+                        if (
+                            tgt !== undefined &&
+                            tgt !== null &&
+                            String(tgt) !== ""
+                        ) {
+                            const tgtStr = String(tgt);
+                            const exists = importedEdges.some(
+                                (ee) =>
+                                    ee.source === srcId && ee.target === tgtStr,
+                            );
+                            if (!exists) {
+                                importedEdges.push({
+                                    id: `e${srcId}-${tgtStr}`,
+                                    source: srcId,
+                                    target: tgtStr,
+                                    sourceHandle: `bottom-${idx}`,
+                                    targetHandle: `top-0`,
+                                });
+                            }
+                        }
+                    });
+                    // default branch
+                    const def =
+                        nodeExport.default_next_node_id ??
+                        nodeExport.defaultNext ??
+                        nodeExport.default_next ??
+                        nodeExport.next_node_id;
+                    if (def) {
+                        const defStr = String(def);
+                        const existsDef = importedEdges.some(
+                            (ee) => ee.source === srcId && ee.target === defStr,
+                        );
+                        if (!existsDef) {
+                            importedEdges.push({
+                                id: `e${srcId}-${defStr}`,
+                                source: srcId,
+                                target: defStr,
+                                sourceHandle: `bottom-default`,
+                                targetHandle: `top-0`,
+                            });
+                        }
+                    }
+                });
+
                 setNodes(importedNodes);
                 setEdges(importedEdges);
                 // set root node from backend payload when available
@@ -582,14 +639,14 @@ const Editor: React.FC<{
                         "Edge source not found in nodesObj:",
                         e,
                         "resolved->",
-                        src
+                        src,
                     );
                 if (!nodesObj[tgt])
                     console.warn(
                         "Edge target not found in nodesObj:",
                         e,
                         "resolved->",
-                        tgt
+                        tgt,
                     );
                 return {
                     source: src,
@@ -610,10 +667,10 @@ const Editor: React.FC<{
                             ? String(rootNodeId)
                             : (() => {
                                   const targets = new Set(
-                                      edgesArr.map((e) => String(e.target))
+                                      edgesArr.map((e) => String(e.target)),
                                   );
                                   const candidates = Object.keys(
-                                      nodesObj
+                                      nodesObj,
                                   ).filter((id) => !targets.has(id));
                                   return candidates.length
                                       ? candidates[0]
@@ -631,32 +688,32 @@ const Editor: React.FC<{
                 // eslint-disable-next-line no-console
                 console.log(
                     "Saving chatbot nodes keys:",
-                    Object.keys(nodesObj)
+                    Object.keys(nodesObj),
                 );
                 // eslint-disable-next-line no-console
                 console.log("Saving chatbot edges:", edgesArr);
                 const missing = edgesArr.filter(
-                    (e) => !nodesObj[e.source] || !nodesObj[e.target]
+                    (e) => !nodesObj[e.source] || !nodesObj[e.target],
                 );
                 if (missing.length) {
                     // eslint-disable-next-line no-console
                     console.warn(
                         "saveChatbot: edges referencing missing nodes:",
-                        missing
+                        missing,
                     );
                 }
                 // detect suspicious next_node_id values
                 const suspicious = Object.entries(
-                    payload.graph.nodes || {}
+                    payload.graph.nodes || {},
                 ).filter(
                     ([, v]: any) =>
-                        v.next_node_id === "0" || v.next_node_id === 0
+                        v.next_node_id === "0" || v.next_node_id === 0,
                 );
                 if (suspicious.length) {
                     // eslint-disable-next-line no-console
                     console.warn(
                         "saveChatbot: suspicious next_node_id entries:",
-                        suspicious
+                        suspicious,
                     );
                 }
                 // eslint-disable-next-line no-console
@@ -709,7 +766,7 @@ const Editor: React.FC<{
             reader.onload = (e) => {
                 try {
                     const chatbot: Chatbot = JSON.parse(
-                        e.target?.result as string
+                        e.target?.result as string,
                     );
 
                     // Восстанавливаем переменные
@@ -730,7 +787,7 @@ const Editor: React.FC<{
                         switch (nodeExport.type) {
                             case "setmessage":
                                 data = {
-                                    label: "Set Message",
+                                    label: "Задать сообщение",
                                     bodies: nodeExport.bodies || [],
                                 };
                                 break;
@@ -741,7 +798,9 @@ const Editor: React.FC<{
                                 };
                                 break;
                             case "sendmessage":
-                                data = { label: "Send Message" };
+                                data = {
+                                    label: "Отправка сообщения пользователю",
+                                };
                                 break;
                             case "condition":
                                 data = {
@@ -803,20 +862,76 @@ const Editor: React.FC<{
                         });
                     }
 
+                    // Defensive: add edges from condition branches if they contain next_node_id
+                    Object.values(graph.nodes).forEach((nodeExport: any) => {
+                        if (nodeExport.type !== "condition") return;
+                        const srcId = String(
+                            nodeExport.node_id ?? nodeExport.id,
+                        );
+                        const branches = Array.isArray(nodeExport.branches)
+                            ? nodeExport.branches
+                            : [];
+                        branches.forEach((br: any, idx: number) => {
+                            const tgt =
+                                br?.next_node_id ?? br?.next ?? br?.target;
+                            if (
+                                tgt !== undefined &&
+                                tgt !== null &&
+                                String(tgt) !== ""
+                            ) {
+                                const tgtStr = String(tgt);
+                                const exists = importedEdges.some(
+                                    (ee) =>
+                                        ee.source === srcId &&
+                                        ee.target === tgtStr,
+                                );
+                                if (!exists) {
+                                    importedEdges.push({
+                                        id: `e${srcId}-${tgtStr}`,
+                                        source: srcId,
+                                        target: tgtStr,
+                                        sourceHandle: `bottom-${idx}`,
+                                        targetHandle: `top-0`,
+                                    });
+                                }
+                            }
+                        });
+                        const def =
+                            nodeExport.default_next_node_id ??
+                            nodeExport.defaultNext ??
+                            nodeExport.default_next ??
+                            nodeExport.next_node_id;
+                        if (def) {
+                            const defStr = String(def);
+                            const existsDef = importedEdges.some(
+                                (ee) =>
+                                    ee.source === srcId && ee.target === defStr,
+                            );
+                            if (!existsDef)
+                                importedEdges.push({
+                                    id: `e${srcId}-${defStr}`,
+                                    source: srcId,
+                                    target: defStr,
+                                    sourceHandle: `bottom-default`,
+                                    targetHandle: `top-0`,
+                                });
+                        }
+                    });
+
                     setNodes(importedNodes);
                     setEdges(importedEdges);
                     setRootNodeId(String(graph.root ?? ""));
                     alert("Граф успешно импортирован!");
                 } catch (error) {
                     alert(
-                        "Ошибка при импорте файла: " + (error as Error).message
+                        "Ошибка при импорте файла: " + (error as Error).message,
                     );
                 }
             };
             reader.readAsText(file);
             event.target.value = "";
         },
-        []
+        [],
     );
 
     useEffect(() => {
@@ -831,17 +946,29 @@ const Editor: React.FC<{
                         headers: {
                             Authorization: token ? `Bearer ${token}` : "",
                         },
-                    }
+                    },
                 );
                 const json = await res.json();
                 if (!res.ok)
                     throw new Error(
                         json?.detail ||
                             json?.message ||
-                            "Failed to load chatbot"
+                            "Failed to load chatbot",
                     );
                 const payload = json?.chatbot ?? json;
                 const parsed = parseBackendChatbot(payload);
+                try {
+                    // eslint-disable-next-line no-console
+                    console.debug(
+                        "Loaded chatbot payload (second load):",
+                        payload,
+                    );
+                    // eslint-disable-next-line no-console
+                    console.debug(
+                        "Parsed chatbot object (second load):",
+                        parsed,
+                    );
+                } catch (e) {}
                 if (!mounted) return;
 
                 const importedNodes: Node[] = [];
@@ -854,7 +981,7 @@ const Editor: React.FC<{
                     switch (nodeExport.type) {
                         case "setmessage":
                             data = {
-                                label: "Set Message",
+                                label: "Задать сообщение",
                                 bodies: nodeExport.bodies || [],
                             };
                             break;
@@ -865,7 +992,7 @@ const Editor: React.FC<{
                             };
                             break;
                         case "sendmessage":
-                            data = { label: "Send Message" };
+                            data = { label: "Отправка сообщения пользователю" };
                             break;
                         case "condition":
                             data = {
@@ -960,7 +1087,7 @@ const Editor: React.FC<{
                 console.error(err);
                 alert(
                     "Ошибка при загрузке чатбота: " +
-                        (err?.message || String(err))
+                        (err?.message || String(err)),
                 );
             }
         };
@@ -969,6 +1096,16 @@ const Editor: React.FC<{
             mounted = false;
         };
     }, [_chatbotId, token]);
+
+    const returnItem: MenuItem | null = onBack
+        ? {
+              label: "Назад",
+              type: "button" as const,
+              variant: "secondary" as const,
+              onClick: onBack,
+              icon: "back" as const,
+          }
+        : null;
 
     const leftItems: MenuItem[] = [
         {
@@ -996,6 +1133,30 @@ const Editor: React.FC<{
             icon: "save",
         },
         {
+            label: "Удалить",
+            type: "button",
+            variant: "danger",
+            onClick: () => {
+                if (!activeNodeId) {
+                    alert("Выберите ноду для удаления");
+                    return;
+                }
+                setNodes((nds) => nds.filter((n) => n.id !== activeNodeId));
+                setEdges((eds) =>
+                    eds.filter(
+                        (e) =>
+                            e.source !== activeNodeId &&
+                            e.target !== activeNodeId,
+                    ),
+                );
+                setActiveNodeId(null);
+            },
+            icon: "delete",
+        },
+    ];
+
+    const rightItems: MenuItem[] = [
+        {
             label: "Превью",
             type: "button",
             variant: "secondary",
@@ -1011,41 +1172,6 @@ const Editor: React.FC<{
         },
     ];
 
-    const rightItems: MenuItem[] = [
-        ...(onBack
-            ? [
-                  {
-                      label: "Назад",
-                      type: "button" as const,
-                      variant: "secondary" as const,
-                      onClick: onBack,
-                      icon: "back" as const,
-                  } as MenuItem,
-              ]
-            : []),
-        {
-            label: "Удалить",
-            type: "button",
-            variant: "danger",
-            onClick: () => {
-                if (!activeNodeId) {
-                    alert("Выберите ноду для удаления");
-                    return;
-                }
-                setNodes((nds) => nds.filter((n) => n.id !== activeNodeId));
-                setEdges((eds) =>
-                    eds.filter(
-                        (e) =>
-                            e.source !== activeNodeId &&
-                            e.target !== activeNodeId
-                    )
-                );
-                setActiveNodeId(null);
-            },
-            icon: "delete",
-        },
-    ];
-
     return (
         <div
             style={{
@@ -1056,10 +1182,10 @@ const Editor: React.FC<{
             }}
         >
             <Navbar
+                returnItem={returnItem}
                 leftItems={leftItems}
                 centerItems={centerItems}
                 rightItems={rightItems}
-                hideBrand
             />
             <input
                 ref={fileInputRef}
@@ -1068,9 +1194,18 @@ const Editor: React.FC<{
                 style={{ display: "none" }}
                 onChange={handleFileImport}
             />
-            <div style={{ width: "100%", flex: 1, display: "flex" }}>
+            <div
+                style={{
+                    width: "100%",
+                    flex: 1,
+                    display: "flex",
+                }}
+            >
                 <NodeBar activeNodeType={(activeNode?.type as any) || null} />
-                <div style={{ flex: 1 }} ref={reactFlowWrapper}>
+                <div
+                    style={{ flex: 1, background: "#E2E8F0" }}
+                    ref={reactFlowWrapper}
+                >
                     <ReactFlow
                         nodes={nodes.map((node) => {
                             const updateData = (newData: any) =>
@@ -1078,8 +1213,8 @@ const Editor: React.FC<{
                                     nds.map((n) =>
                                         n.id === node.id
                                             ? { ...n, data: newData }
-                                            : n
-                                    )
+                                            : n,
+                                    ),
                                 );
 
                             if (node.type === "setmessage") {
@@ -1088,7 +1223,7 @@ const Editor: React.FC<{
                                     data: {
                                         ...node.data,
                                         onChange: (
-                                            newData: SetMessageNodeData
+                                            newData: SetMessageNodeData,
                                         ) => updateData(newData),
                                     },
                                 };
@@ -1107,7 +1242,7 @@ const Editor: React.FC<{
                                     data: {
                                         ...node.data,
                                         onChange: (
-                                            newData: ConditionNodeData
+                                            newData: ConditionNodeData,
                                         ) => updateData(newData),
                                     },
                                 };
@@ -1135,7 +1270,7 @@ const Editor: React.FC<{
                                     data: {
                                         ...node.data,
                                         onChange: (
-                                            newData: TextAnswerNodeData
+                                            newData: TextAnswerNodeData,
                                         ) => updateData(newData),
                                     },
                                 };
@@ -1145,7 +1280,7 @@ const Editor: React.FC<{
                                     data: {
                                         ...node.data,
                                         onChange: (
-                                            newData: FileAnswerNodeData
+                                            newData: FileAnswerNodeData,
                                         ) => updateData(newData),
                                     },
                                 };
@@ -1162,7 +1297,7 @@ const Editor: React.FC<{
                         onEdgeClick={(_, e) => {
                             if (selectedEdgeId === e.id) {
                                 setEdges((cur) =>
-                                    cur.filter((ed) => ed.id !== e.id)
+                                    cur.filter((ed) => ed.id !== e.id),
                                 );
                                 setSelectedEdgeId(null);
                             } else {
@@ -1175,14 +1310,23 @@ const Editor: React.FC<{
                         onNodesChange={onNodesChange}
                         onEdgesChange={onEdgesChange}
                         onConnect={onConnect}
+                        defaultEdgeOptions={{
+                            style: {
+                                stroke: "#86B4FF",
+                                strokeWidth: 2,
+                            },
+                        }}
+                        connectionLineStyle={{
+                            stroke: "#86B4FF",
+                            strokeWidth: 1,
+                        }}
                     >
-                        <Background />
-                        <Controls />
+                        <Background size={0} />
                     </ReactFlow>
                 </div>
                 <div
                     style={{
-                        width: 280,
+                        width: 360,
                         borderLeft: "1px solid #e5e7eb",
                         padding: 12,
                         overflowY: "auto",
@@ -1282,7 +1426,7 @@ const Editor: React.FC<{
                                                 ).delay || 0;
                                             const newValue = Math.max(
                                                 0,
-                                                current - 0.1
+                                                current - 0.1,
                                             );
                                             setNodes((nds) =>
                                                 nds.map((n) =>
@@ -1294,12 +1438,12 @@ const Editor: React.FC<{
                                                                   delay:
                                                                       Math.round(
                                                                           newValue *
-                                                                              10
+                                                                              10,
                                                                       ) / 10,
                                                               },
                                                           }
-                                                        : n
-                                                )
+                                                        : n,
+                                                ),
                                             );
                                         }}
                                         style={{
@@ -1341,8 +1485,8 @@ const Editor: React.FC<{
                                                                               : num,
                                                                   },
                                                               }
-                                                            : n
-                                                    )
+                                                            : n,
+                                                    ),
                                                 );
                                             }
                                         }}
@@ -1360,8 +1504,8 @@ const Editor: React.FC<{
                                                                       delay: 0,
                                                                   },
                                                               }
-                                                            : n
-                                                    )
+                                                            : n,
+                                                    ),
                                                 );
                                             }
                                         }}
@@ -1391,12 +1535,12 @@ const Editor: React.FC<{
                                                                   delay:
                                                                       Math.round(
                                                                           newValue *
-                                                                              10
+                                                                              10,
                                                                       ) / 10,
                                                               },
                                                           }
-                                                        : n
-                                                )
+                                                        : n,
+                                                ),
                                             );
                                         }}
                                         style={{
@@ -1435,7 +1579,7 @@ const Editor: React.FC<{
                                     onChange={(e) => {
                                         const nextCount = Math.max(
                                             1,
-                                            parseInt(e.target.value || "1", 10)
+                                            parseInt(e.target.value || "1", 10),
                                         );
                                         setNodes((nds) =>
                                             nds.map((n) => {
@@ -1447,7 +1591,7 @@ const Editor: React.FC<{
                                                     data.branches || [];
                                                 const next = current.slice(
                                                     0,
-                                                    nextCount
+                                                    nextCount,
                                                 );
                                                 while (
                                                     next.length < nextCount
@@ -1467,7 +1611,7 @@ const Editor: React.FC<{
                                                         branches: next,
                                                     },
                                                 };
-                                            })
+                                            }),
                                         );
                                     }}
                                     style={{
@@ -1519,13 +1663,13 @@ const Editor: React.FC<{
                                                                           "python",
                                                                   },
                                                               }
-                                                            : n
-                                                    )
+                                                            : n,
+                                                    ),
                                                 );
                                             };
                                             reader.onerror = () => {
                                                 alert(
-                                                    "Ошибка при чтении файла"
+                                                    "Ошибка при чтении файла",
                                                 );
                                             };
                                             reader.readAsText(file);
@@ -1586,6 +1730,7 @@ const Editor: React.FC<{
                                                     ).language
                                                 }
                                                 style={vscDarkPlus}
+                                                wrapLongLines={true}
                                                 customStyle={{
                                                     margin: 0,
                                                     padding: 0,
@@ -1593,12 +1738,17 @@ const Editor: React.FC<{
                                                     fontSize: "13px",
                                                     fontFamily: "monospace",
                                                     lineHeight: "1.5",
+                                                    overflow: "visible",
+                                                    whiteSpace: "pre-wrap",
+                                                    wordBreak: "break-word",
                                                 }}
                                                 codeTagProps={{
                                                     style: {
                                                         fontFamily: "monospace",
                                                         fontSize: "13px",
                                                         lineHeight: "1.5",
+                                                        whiteSpace: "pre-wrap",
+                                                        wordBreak: "break-word",
                                                     },
                                                 }}
                                                 PreTag="div"
@@ -1627,8 +1777,8 @@ const Editor: React.FC<{
                                                                       script,
                                                                   },
                                                               }
-                                                            : n
-                                                    )
+                                                            : n,
+                                                    ),
                                                 );
                                             }}
                                             onKeyDown={(e) => {
@@ -1649,43 +1799,43 @@ const Editor: React.FC<{
                                                         const beforeStart =
                                                             value.substring(
                                                                 0,
-                                                                start
+                                                                start,
                                                             );
                                                         const lineStart =
                                                             beforeStart.lastIndexOf(
-                                                                "\n"
+                                                                "\n",
                                                             ) + 1;
                                                         const lineBefore =
                                                             value.substring(
                                                                 lineStart,
-                                                                start
+                                                                start,
                                                             );
 
                                                         if (
                                                             lineBefore.startsWith(
-                                                                "    "
+                                                                "    ",
                                                             )
                                                         ) {
                                                             const newValue =
                                                                 value.substring(
                                                                     0,
-                                                                    lineStart
+                                                                    lineStart,
                                                                 ) +
                                                                 lineBefore.substring(
-                                                                    4
+                                                                    4,
                                                                 ) +
                                                                 value.substring(
-                                                                    start
+                                                                    start,
                                                                 );
                                                             const newStart =
                                                                 Math.max(
                                                                     lineStart,
-                                                                    start - 4
+                                                                    start - 4,
                                                                 );
                                                             const newEnd =
                                                                 Math.max(
                                                                     lineStart,
-                                                                    end - 4
+                                                                    end - 4,
                                                                 );
                                                             setNodes((nds) =>
                                                                 nds.map((n) =>
@@ -1698,13 +1848,13 @@ const Editor: React.FC<{
                                                                                   script: newValue,
                                                                               },
                                                                           }
-                                                                        : n
-                                                                )
+                                                                        : n,
+                                                                ),
                                                             );
                                                             setTimeout(() => {
                                                                 textarea.setSelectionRange(
                                                                     newStart,
-                                                                    newEnd
+                                                                    newEnd,
                                                                 );
                                                             }, 0);
                                                         }
@@ -1713,11 +1863,11 @@ const Editor: React.FC<{
                                                         const newValue =
                                                             value.substring(
                                                                 0,
-                                                                start
+                                                                start,
                                                             ) +
                                                             tab +
                                                             value.substring(
-                                                                end
+                                                                end,
                                                             );
                                                         const newStart =
                                                             start + tab.length;
@@ -1733,13 +1883,13 @@ const Editor: React.FC<{
                                                                               script: newValue,
                                                                           },
                                                                       }
-                                                                    : n
-                                                            )
+                                                                    : n,
+                                                            ),
                                                         );
                                                         setTimeout(() => {
                                                             textarea.setSelectionRange(
                                                                 newStart,
-                                                                newEnd
+                                                                newEnd,
                                                             );
                                                         }, 0);
                                                     }
@@ -1748,7 +1898,7 @@ const Editor: React.FC<{
                                             onScroll={(e) => {
                                                 const syntaxDiv =
                                                     document.getElementById(
-                                                        `syntax-${activeNode.id}`
+                                                        `syntax-${activeNode.id}`,
                                                     );
                                                 if (syntaxDiv) {
                                                     syntaxDiv.scrollTop =
@@ -1771,6 +1921,7 @@ const Editor: React.FC<{
                                                 lineHeight: "1.5",
                                                 background: "transparent",
                                                 color: "transparent",
+                                                overflow: "auto",
                                                 caretColor: "#d4d4d4",
                                                 resize: "vertical",
                                                 outline: "none",

@@ -3,11 +3,12 @@ import BaseBody from "./BaseBody";
 interface TextBodyProps {
     data: { text: string };
     onChange: (newData: { text: string }) => void;
+    onDelete?: () => void;
 }
 
-const TextBody = ({ data, onChange }: TextBodyProps) => {
+const TextBody = ({ data, onChange, onDelete }: TextBodyProps) => {
     return (
-        <BaseBody title="Текст" editable>
+        <BaseBody title="Текст" onDelete={onDelete}>
             <textarea
                 value={data.text ?? ""}
                 onChange={(e) => onChange({ ...data, text: e.target.value })}
@@ -16,8 +17,10 @@ const TextBody = ({ data, onChange }: TextBodyProps) => {
                     width: "100%",
                     minHeight: 60,
                     borderRadius: 4,
-                    border: "1px solid #ccc",
+                    border: "none",
                     padding: 6,
+                    resize: "none",
+                    background: "#E9EDF0",
                 }}
             />
         </BaseBody>
