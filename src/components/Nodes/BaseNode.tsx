@@ -1,4 +1,4 @@
-import { Handle, Position as RFPosition } from "react-flow-renderer";
+import { Handle, Position as RFPosition } from "@xyflow/react";
 
 interface HandleConfig {
     count: number;

@@ -1,5 +1,5 @@
 import BaseNode from "./BaseNode";
-import { Position } from "react-flow-renderer";
+import { Position } from "@xyflow/react";
 
 export type ScriptLanguage = "python";
 

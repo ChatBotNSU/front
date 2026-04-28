@@ -1,5 +1,5 @@
 import BaseNode from "./BaseNode";
-import { Position } from "react-flow-renderer";
+import { Position } from "@xyflow/react";
 
 export type SetVarOperation = "=" | "+=" | "-=" | "*=" | "/=" | "%=";
 
@@ -27,8 +27,12 @@ const SetVarNode = ({ data }: SetVarNodeProps) => {
             ]}
         >
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <label style={{ fontSize: 11, fontWeight: 600 }}>Переменная</label>
+                <div
+                    style={{ display: "flex", flexDirection: "column", gap: 4 }}
+                >
+                    <label style={{ fontSize: 11, fontWeight: 600 }}>
+                        Переменная
+                    </label>
                     <input
                         type="text"
                         value={data.assigned_variable}
@@ -47,8 +51,12 @@ const SetVarNode = ({ data }: SetVarNodeProps) => {
                         }}
                     />
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <label style={{ fontSize: 11, fontWeight: 600 }}>Операция</label>
+                <div
+                    style={{ display: "flex", flexDirection: "column", gap: 4 }}
+                >
+                    <label style={{ fontSize: 11, fontWeight: 600 }}>
+                        Операция
+                    </label>
                     <select
                         value={data.operation}
                         onChange={(e) =>
@@ -71,8 +79,12 @@ const SetVarNode = ({ data }: SetVarNodeProps) => {
                         ))}
                     </select>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <label style={{ fontSize: 11, fontWeight: 600 }}>Операнд</label>
+                <div
+                    style={{ display: "flex", flexDirection: "column", gap: 4 }}
+                >
+                    <label style={{ fontSize: 11, fontWeight: 600 }}>
+                        Операнд
+                    </label>
                     <input
                         type="text"
                         value={data.operand}
@@ -97,4 +109,3 @@ const SetVarNode = ({ data }: SetVarNodeProps) => {
 };
 
 export default SetVarNode;
-

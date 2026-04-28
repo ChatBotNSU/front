@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import "react-flow-renderer/dist/style.css";
-import ReactFlow, {
+import "@xyflow/react/dist/style.css";
+import {
+    ReactFlow,
     Background,
     type Edge,
     type Node,
@@ -11,7 +12,7 @@ import ReactFlow, {
     type NodeChange,
     type EdgeChange,
     type Connection,
-} from "react-flow-renderer";
+} from "@xyflow/react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import SetMessageNode, {
@@ -36,7 +37,7 @@ import TextAnswerNode, {
 import FileAnswerNode, {
     type FileAnswerNodeData,
 } from "../components/Nodes/FileAnswerNode";
-import NodeBar from "../components/NodeBar/NodeBar";
+import AddNodeButton from "../components/NodeBar/AddNodeButton";
 import Navbar from "../components/Navbar";
 import VariablesPanel from "../components/VariablesPanel";
 import { useSelector } from "react-redux";
@@ -134,6 +135,7 @@ const Editor: React.FC<{
     }, []);
 
     const onDragOver = useCallback((event: React.DragEvent) => {
+        console.log("DRAG OVER", event.dataTransfer.types);
         event.preventDefault();
         event.dataTransfer.dropEffect = "move";
     }, []);
@@ -141,21 +143,45 @@ const Editor: React.FC<{
     const onDrop = useCallback(
         (event: React.DragEvent) => {
             event.preventDefault();
+            console.log(
+                "DROP EVENT FIRED",
+                event.dataTransfer.getData("application/reactflow"),
+            );
             const data = event.dataTransfer.getData("application/reactflow");
-            if (!data) return;
+            if (!data) {
+                console.log("No data in drop");
+                return;
+            }
             let payload: any;
             try {
                 payload = JSON.parse(data);
             } catch {
+                console.log("Failed to parse payload");
                 return;
             }
 
             const bounds = reactFlowWrapper.current?.getBoundingClientRect();
-            if (!bounds || !reactFlowInstanceRef.current) return;
-            const position = reactFlowInstanceRef.current.project({
-                x: event.clientX - bounds.left,
-                y: event.clientY - bounds.top,
-            });
+            if (!bounds || !reactFlowInstanceRef.current) {
+                console.log("No bounds or reactflow instance");
+                return;
+            }
+
+            // Use screenToFlowPosition if project method doesn't exist
+            let position: any;
+            if (reactFlowInstanceRef.current.screenToFlowPosition) {
+                position = reactFlowInstanceRef.current.screenToFlowPosition({
+                    x: event.clientX,
+                    y: event.clientY,
+                });
+            } else if (reactFlowInstanceRef.current.project) {
+                position = reactFlowInstanceRef.current.project({
+                    x: event.clientX - bounds.left,
+                    y: event.clientY - bounds.top,
+                });
+            } else {
+                console.error("ReactFlow instance has no projection method");
+                return;
+            }
 
             // If payload has nodeType only -> create node
             if (payload.nodeType && !payload.bodyType) {
@@ -239,6 +265,10 @@ const Editor: React.FC<{
                 // If no explicit root is set yet, make the first created node the root
                 setRootNodeId((prev) => prev || id);
                 setActiveNodeId(id);
+                // Dispatch event to close NodeModal after successful drop
+                window.dispatchEvent(
+                    new CustomEvent("nodeCreated", { detail: { nodeId: id } }),
+                );
                 return;
             }
 
@@ -1201,10 +1231,15 @@ const Editor: React.FC<{
                     display: "flex",
                 }}
             >
-                <NodeBar activeNodeType={(activeNode?.type as any) || null} />
                 <div
-                    style={{ flex: 1, background: "#E2E8F0" }}
+                    style={{
+                        flex: 1,
+                        background: "#E2E8F0",
+                        position: "relative",
+                    }}
                     ref={reactFlowWrapper}
+                    onDrop={onDrop}
+                    onDragOver={onDragOver}
                 >
                     <ReactFlow
                         nodes={nodes.map((node) => {
@@ -1291,8 +1326,6 @@ const Editor: React.FC<{
                         nodeTypes={nodeTypes}
                         fitView
                         onInit={onInit}
-                        onDrop={onDrop}
-                        onDragOver={onDragOver}
                         onNodeClick={(_, n) => setActiveNodeId(n.id)}
                         onEdgeClick={(_, e) => {
                             if (selectedEdgeId === e.id) {
@@ -1305,6 +1338,8 @@ const Editor: React.FC<{
                             }
                         }}
                         onPaneClick={() => setSelectedEdgeId(null)}
+                        onDrop={onDrop}
+                        onDragOver={onDragOver}
                         nodesDraggable={true}
                         nodesConnectable={true}
                         onNodesChange={onNodesChange}
@@ -1323,6 +1358,7 @@ const Editor: React.FC<{
                     >
                         <Background size={0} />
                     </ReactFlow>
+                    <AddNodeButton />
                 </div>
                 <div
                     style={{

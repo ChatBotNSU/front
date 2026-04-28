@@ -1,5 +1,5 @@
 import BaseNode from "./BaseNode";
-import { Position } from "react-flow-renderer";
+import { Position } from "@xyflow/react";
 
 export interface TextAnswerNodeData {
     label?: string;
@@ -21,7 +21,9 @@ const TextAnswerNode = ({ data }: TextAnswerNodeProps) => {
             ]}
         >
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <label style={{ fontSize: 12, fontWeight: 600 }}>Переменная</label>
+                <label style={{ fontSize: 12, fontWeight: 600 }}>
+                    Переменная
+                </label>
                 <input
                     type="text"
                     value={data.variable}
@@ -45,4 +47,3 @@ const TextAnswerNode = ({ data }: TextAnswerNodeProps) => {
 };
 
 export default TextAnswerNode;
-

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import BaseNode from "./BaseNode";
-import { Position } from "react-flow-renderer";
+import { Position } from "@xyflow/react";
 
 export interface WaitNodeData {
     label?: string;
