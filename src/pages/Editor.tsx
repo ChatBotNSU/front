@@ -44,7 +44,10 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import parseBackendChatbot from "../utils/parseBackendChatbot";
 import serializeToBackendChatbot from "../utils/serializeToBackendChatbot";
-import { handleMultiSelectClick } from "../utils/multiSelectNodes";
+import {
+    handleCanvasNodeClick,
+    handleCanvasNodeContextMenu,
+} from "../utils/multiSelectCanvas";
 import PreviewModal from "../components/Preview/PreviewModal";
 import PublishModal from "../components/Publish/PublishModal";
 import type { MenuItem } from "../types/menu";
@@ -1239,6 +1242,7 @@ const Editor: React.FC<{
                         flex: 1,
                         background: "#E2E8F0",
                         position: "relative",
+                        userSelect: "none",
                     }}
                     ref={reactFlowWrapper}
                     onDrop={onDrop}
@@ -1348,13 +1352,26 @@ const Editor: React.FC<{
                         fitView
                         onInit={onInit}
                         onNodeClick={(event, n) => {
-                            const result = handleMultiSelectClick(
+                            const result = handleCanvasNodeClick(
+                                event,
                                 n.id,
-                                event.shiftKey,
-                                event.ctrlKey,
                                 selectedNodeIds,
                                 lastClickedNodeId,
                             );
+                            setSelectedNodeIds(result.newSelectedNodes);
+                            setActiveNodeId(result.newActiveNodeId);
+                            setLastClickedNodeId(result.newLastClickedNodeId);
+                        }}
+                        onNodeContextMenu={(event, n) => {
+                            const result = handleCanvasNodeContextMenu(
+                                event,
+                                n.id,
+                                selectedNodeIds,
+                                lastClickedNodeId,
+                            );
+                            if (!result) {
+                                return;
+                            }
                             setSelectedNodeIds(result.newSelectedNodes);
                             setActiveNodeId(result.newActiveNodeId);
                             setLastClickedNodeId(result.newLastClickedNodeId);
