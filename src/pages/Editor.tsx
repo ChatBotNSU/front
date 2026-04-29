@@ -44,6 +44,7 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../store";
 import parseBackendChatbot from "../utils/parseBackendChatbot";
 import serializeToBackendChatbot from "../utils/serializeToBackendChatbot";
+import { handleMultiSelectClick } from "../utils/multiSelectNodes";
 import PreviewModal from "../components/Preview/PreviewModal";
 import PublishModal from "../components/Publish/PublishModal";
 import type { MenuItem } from "../types/menu";
@@ -78,6 +79,8 @@ const Editor: React.FC<{
     const [edges, setEdges] = useState<Edge[]>([]);
     const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
     const [rootNodeId, setRootNodeId] = useState<string | null>(null);
+    const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
+    const [lastClickedNodeId, setLastClickedNodeId] = useState<string | null>(null);
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const reactFlowInstanceRef = useRef<any>(null);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
@@ -1243,6 +1246,7 @@ const Editor: React.FC<{
                 >
                     <ReactFlow
                         nodes={nodes.map((node) => {
+                            const isSelected = selectedNodeIds.has(node.id);
                             const updateData = (newData: any) =>
                                 setNodes((nds) =>
                                     nds.map((n) =>
@@ -1252,9 +1256,26 @@ const Editor: React.FC<{
                                     ),
                                 );
 
+                            const baseNode = {
+                                ...node,
+                                style: {
+                                    ...node.style,
+                                    outline: isSelected
+                                        ? "3px solid #3b82f6"
+                                        : "none",
+                                    outlineOffset: isSelected ? "2px" : "0px",
+                                    borderRadius: "8px",
+                                    boxShadow: isSelected
+                                        ? "0 0 0 2px #1e40af"
+                                        : "none",
+                                    transition:
+                                        "outline 0.2s ease, box-shadow 0.2s ease",
+                                },
+                            };
+
                             if (node.type === "setmessage") {
                                 return {
-                                    ...node,
+                                    ...baseNode,
                                     data: {
                                         ...node.data,
                                         onChange: (
@@ -1264,7 +1285,7 @@ const Editor: React.FC<{
                                 };
                             } else if (node.type === "wait") {
                                 return {
-                                    ...node,
+                                    ...baseNode,
                                     data: {
                                         ...node.data,
                                         onChange: (newData: WaitNodeData) =>
@@ -1273,7 +1294,7 @@ const Editor: React.FC<{
                                 };
                             } else if (node.type === "condition") {
                                 return {
-                                    ...node,
+                                    ...baseNode,
                                     data: {
                                         ...node.data,
                                         onChange: (
@@ -1283,7 +1304,7 @@ const Editor: React.FC<{
                                 };
                             } else if (node.type === "script") {
                                 return {
-                                    ...node,
+                                    ...baseNode,
                                     data: {
                                         ...node.data,
                                         onChange: (newData: ScriptNodeData) =>
@@ -1292,7 +1313,7 @@ const Editor: React.FC<{
                                 };
                             } else if (node.type === "setvar") {
                                 return {
-                                    ...node,
+                                    ...baseNode,
                                     data: {
                                         ...node.data,
                                         onChange: (newData: SetVarNodeData) =>
@@ -1301,7 +1322,7 @@ const Editor: React.FC<{
                                 };
                             } else if (node.type === "textanswer") {
                                 return {
-                                    ...node,
+                                    ...baseNode,
                                     data: {
                                         ...node.data,
                                         onChange: (
@@ -1311,7 +1332,7 @@ const Editor: React.FC<{
                                 };
                             } else if (node.type === "fileanswer") {
                                 return {
-                                    ...node,
+                                    ...baseNode,
                                     data: {
                                         ...node.data,
                                         onChange: (
@@ -1320,13 +1341,24 @@ const Editor: React.FC<{
                                     },
                                 };
                             }
-                            return node;
+                            return baseNode;
                         })}
                         edges={edges}
                         nodeTypes={nodeTypes}
                         fitView
                         onInit={onInit}
-                        onNodeClick={(_, n) => setActiveNodeId(n.id)}
+                        onNodeClick={(event, n) => {
+                            const result = handleMultiSelectClick(
+                                n.id,
+                                event.shiftKey,
+                                event.ctrlKey,
+                                selectedNodeIds,
+                                lastClickedNodeId,
+                            );
+                            setSelectedNodeIds(result.newSelectedNodes);
+                            setActiveNodeId(result.newActiveNodeId);
+                            setLastClickedNodeId(result.newLastClickedNodeId);
+                        }}
                         onEdgeClick={(_, e) => {
                             if (selectedEdgeId === e.id) {
                                 setEdges((cur) =>
@@ -1337,7 +1369,11 @@ const Editor: React.FC<{
                                 setSelectedEdgeId(e.id);
                             }
                         }}
-                        onPaneClick={() => setSelectedEdgeId(null)}
+                        onPaneClick={() => {
+                            setSelectedEdgeId(null);
+                            setSelectedNodeIds(new Set());
+                            setLastClickedNodeId(null);
+                        }}
                         onDrop={onDrop}
                         onDragOver={onDragOver}
                         nodesDraggable={true}
