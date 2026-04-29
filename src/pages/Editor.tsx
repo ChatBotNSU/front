@@ -12,6 +12,7 @@ import {
     type NodeChange,
     type EdgeChange,
     type Connection,
+    SelectionMode,
 } from "@xyflow/react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -1386,6 +1387,7 @@ const Editor: React.FC<{
                                 setSelectedEdgeId(e.id);
                             }
                         }}
+                        selectionMode={SelectionMode.Partial}
                         onPaneClick={() => {
                             setSelectedEdgeId(null);
                             setSelectedNodeIds(new Set());
