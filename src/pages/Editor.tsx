@@ -83,8 +83,12 @@ const Editor: React.FC<{
     const [edges, setEdges] = useState<Edge[]>([]);
     const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
     const [rootNodeId, setRootNodeId] = useState<string | null>(null);
-    const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
-    const [lastClickedNodeId, setLastClickedNodeId] = useState<string | null>(null);
+    const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(
+        new Set(),
+    );
+    const [lastClickedNodeId, setLastClickedNodeId] = useState<string | null>(
+        null,
+    );
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const reactFlowInstanceRef = useRef<any>(null);
     const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
