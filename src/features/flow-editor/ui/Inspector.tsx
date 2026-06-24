@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { useFlows, useFlowVersions } from "@/entities/flow/api";
+import { useFlow, useFlows, useFlowVersions } from "@/entities/flow/api";
+import { readFlowInterface } from "@/entities/flow/model/types";
 import { useIntegrations } from "@/entities/integration/api";
 import { getConfigFields } from "@/entities/node/model/configSchema";
 import { NODE_CATALOG } from "@/entities/node/model/types";
@@ -10,6 +11,7 @@ import { useEditorStore } from "../model/editorStore";
 import type { EditorEdgeData } from "../model/types";
 import { ConfigForm } from "./ConfigForm";
 import { FlowVersionPreview } from "./FlowVersionPreview";
+import { SubgraphMappingEditor } from "./SubgraphMappingEditor";
 
 export function Inspector() {
   const selection = useEditorStore((s) => s.selection);
@@ -77,6 +79,11 @@ function NodeInspector({ id }: { id: string }) {
     versions: childVersions?.versions ?? [],
   };
 
+  // Full child-flow detail — so we can read its declared interface (inputs /
+  // outputs) and offer the mapping UI. Skipped when no subgraph or no flow_id.
+  const { data: childFlow } = useFlow(childFlowId || undefined);
+  const childInterface = readFlowInterface(childFlow?.metadata);
+
   const fields = node ? getConfigFields(node.data.nodeType) : undefined;
   const [showJson, setShowJson] = useState(false);
   const [configText, setConfigText] = useState("");
@@ -118,6 +125,15 @@ function NodeInspector({ id }: { id: string }) {
         )}
       </div>
 
+      <button
+        type="button"
+        onClick={() => void navigator.clipboard?.writeText(id)}
+        className="block w-full select-text break-all rounded-md border border-border/60 bg-panel-2 px-2 py-1 text-left font-mono text-[10px] text-muted hover:text-slate-200"
+        title="Кликнуть — скопировать"
+      >
+        {id}
+      </button>
+
       <Field label="Название">
         <input
           className={inputCls}
@@ -140,9 +156,28 @@ function NodeInspector({ id }: { id: string }) {
       )}
 
       {node.data.nodeType === "subgraph" && childFlowId && (
-        <Button variant="ghost" onClick={() => setPreviewOpen(true)}>
-          Просмотр версий
-        </Button>
+        <>
+          <SubgraphMappingEditor
+            declared={childInterface}
+            inputMapping={
+              (config.input_mapping as Record<string, string> | undefined) ?? {}
+            }
+            outputMapping={
+              (config.output_mapping as Record<string, string> | undefined) ?? {}
+            }
+            isolated={Boolean(
+              config.isolated ||
+                (config.input_mapping &&
+                  Object.keys(config.input_mapping as Record<string, string>).length > 0) ||
+                (config.output_mapping &&
+                  Object.keys(config.output_mapping as Record<string, string>).length > 0),
+            )}
+            onChange={patchConfig}
+          />
+          <Button variant="ghost" onClick={() => setPreviewOpen(true)}>
+            Просмотр версий
+          </Button>
+        </>
       )}
       {previewOpen && (
         <FlowVersionPreview

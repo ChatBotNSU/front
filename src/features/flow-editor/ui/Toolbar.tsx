@@ -15,6 +15,7 @@ import { Button, toast } from "@/shared/ui";
 import { useEditorStore } from "../model/editorStore";
 import { planGrouping } from "../model/grouping";
 import { flowToReactFlow, reactFlowToPayload } from "../model/mapping";
+import { FlowInterfaceEditor } from "./FlowInterfaceEditor";
 import { FlowVersionPreview } from "./FlowVersionPreview";
 
 export function Toolbar({ flowId, onDemo }: { flowId: string; onDemo: () => void }) {
@@ -25,6 +26,8 @@ export function Toolbar({ flowId, onDemo }: { flowId: string; onDemo: () => void
   const markSaved = useEditorStore((s) => s.markSaved);
   const setGraph = useEditorStore((s) => s.setGraph);
   const applyGrouping = useEditorStore((s) => s.applyGrouping);
+  const metadata = useEditorStore((s) => s.metadata);
+  const setMetadata = useEditorStore((s) => s.setMetadata);
 
   const navigate = useNavigate();
   const projectId = useEditorStore((s) => s.projectId);
@@ -34,6 +37,7 @@ export function Toolbar({ flowId, onDemo }: { flowId: string; onDemo: () => void
   const fileInput = useRef<HTMLInputElement>(null);
   const [errors, setErrors] = useState<string[] | null>(null);
   const [versionsOpen, setVersionsOpen] = useState(false);
+  const [interfaceOpen, setInterfaceOpen] = useState(false);
   const { data: versions } = useFlowVersions(flowId);
   const createVersion = useCreateFlowVersion(flowId);
 
@@ -164,6 +168,13 @@ export function Toolbar({ flowId, onDemo }: { flowId: string; onDemo: () => void
         </Button>
         <Button
           variant="ghost"
+          onClick={() => setInterfaceOpen(true)}
+          title="Объявить входы и выходы этого флоу (контракт для вызова как подграф)"
+        >
+          Интерфейс
+        </Button>
+        <Button
+          variant="ghost"
           onClick={snapshotVersion}
           disabled={createVersion.isPending || update.isPending}
           title="Сохранить текущее состояние как новую версию"
@@ -207,6 +218,14 @@ export function Toolbar({ flowId, onDemo }: { flowId: string; onDemo: () => void
           e.target.value = "";
         }}
       />
+
+      {interfaceOpen && (
+        <FlowInterfaceEditor
+          metadata={metadata}
+          onSave={({ inputs, outputs }) => setMetadata({ inputs, outputs })}
+          onClose={() => setInterfaceOpen(false)}
+        />
+      )}
 
       {versionsOpen && versions && (
         <FlowVersionPreview

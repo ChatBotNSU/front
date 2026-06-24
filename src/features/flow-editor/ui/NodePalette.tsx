@@ -15,7 +15,9 @@ export function NodePalette() {
       </div>
       <div className="flex flex-col gap-4 p-3">
         {NODE_GROUPS.map((group) => {
-          const specs = Object.values(NODE_CATALOG).filter((s) => s.group === group.id);
+          const specs = Object.values(NODE_CATALOG).filter(
+            (s) => s.group === group.id && !s.hidden,
+          );
           return (
             <div key={group.id}>
               <div className="mb-1.5 text-[11px] uppercase tracking-wide text-muted">

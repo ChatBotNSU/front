@@ -71,7 +71,12 @@ export function flowToReactFlow(flow: FlowDetail): {
 export function reactFlowToPayload(
   nodes: EditorNode[],
   edges: EditorEdge[],
-  meta: { name: string; startNode: string | null; projectId?: string },
+  meta: {
+    name: string;
+    startNode: string | null;
+    projectId?: string;
+    metadata?: Record<string, unknown>;
+  },
 ): FlowWritePayload {
   const outgoing = new Map<string, EditorEdge[]>();
   for (const e of edges) {
@@ -109,5 +114,6 @@ export function reactFlowToPayload(
     project_id: meta.projectId,
     nodes: modelNodes,
     start_node: meta.startNode,
+    metadata: meta.metadata,
   };
 }

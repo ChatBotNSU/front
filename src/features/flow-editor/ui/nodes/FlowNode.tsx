@@ -15,10 +15,17 @@ const GROUP_COLOR: Record<NodeGroup, string> = {
   advanced: "bg-fuchsia-500",
 };
 
-export function FlowNode({ data, selected }: NodeProps<EditorNode>) {
+export function FlowNode({ id, data, selected }: NodeProps<EditorNode>) {
   const spec = NODE_CATALOG[data.nodeType];
   const isTrigger = spec.group === "trigger";
   const isTerminal = spec.terminal;
+  // Short, copy-friendly id excerpt for cross-referencing runtime errors.
+  const shortId = id.slice(0, 8);
+
+  function copyId(e: React.MouseEvent) {
+    e.stopPropagation();
+    void navigator.clipboard?.writeText(id);
+  }
 
   return (
     <div
@@ -44,6 +51,15 @@ export function FlowNode({ data, selected }: NodeProps<EditorNode>) {
       <div className="px-3 py-2 text-sm font-medium text-slate-100">
         {data.label || spec.label}
       </div>
+
+      <button
+        type="button"
+        onClick={copyId}
+        className="block w-full select-none border-t border-border/60 px-3 py-1 text-left font-mono text-[10px] text-muted/80 hover:text-slate-200"
+        title={`Node id (клик — скопировать): ${id}`}
+      >
+        {shortId}…
+      </button>
 
       {!isTerminal && (
         <Handle type="source" position={Position.Bottom} className="!h-2 !w-2 !bg-accent" />

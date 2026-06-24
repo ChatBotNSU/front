@@ -22,12 +22,14 @@ type EditorState = {
   startNode: string | null;
   nodes: EditorNode[];
   edges: EditorEdge[];
+  metadata: Record<string, unknown>;
   selection: Selection;
   dirty: boolean;
   clipboard: { nodes: EditorNode[]; edges: EditorEdge[] } | null;
 
   load: (flow: FlowDetail) => void;
   setName: (name: string) => void;
+  setMetadata: (patch: Record<string, unknown>) => void;
   onNodesChange: (changes: NodeChange<EditorNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<EditorEdge>[]) => void;
   onConnect: (conn: Connection) => void;
@@ -58,6 +60,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   startNode: null,
   nodes: [],
   edges: [],
+  metadata: {},
   selection: null,
   dirty: false,
   clipboard: null,
@@ -71,12 +74,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       startNode: flow.start_node,
       nodes,
       edges,
+      metadata: flow.metadata ?? {},
       selection: null,
       dirty: false,
     });
   },
 
   setName: (name) => set({ name, dirty: true }),
+
+  setMetadata: (patch) =>
+    set((s) => ({ metadata: { ...s.metadata, ...patch }, dirty: true })),
 
   onNodesChange: (changes) =>
     set((s) => ({ nodes: applyNodeChanges(changes, s.nodes), dirty: true })),
@@ -231,6 +238,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       name: s.name,
       startNode: s.startNode,
       projectId: s.projectId || undefined,
+      metadata: s.metadata,
     });
   },
 

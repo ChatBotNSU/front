@@ -45,7 +45,24 @@ export const CONFIG_SCHEMAS: Partial<Record<NodeType, ConfigField[]>> = {
     { key: "model", label: "Модель", type: "text", placeholder: "gpt-4o-mini" },
     { key: "output_var", label: "Переменная результата", type: "text", placeholder: "ai_result" },
   ],
-  cron_trigger: [{ key: "cron", label: "Cron-расписание", type: "text", placeholder: "0 9 * * *" }],
+  message_trigger: [
+    {
+      key: "command",
+      label: "Команда (опционально)",
+      type: "text",
+      placeholder: "/start",
+      help: "Если задано — флоу запускается только когда текст совпадает (с /, без — оба варианта). Пусто = любой текст.",
+    },
+  ],
+  cron_trigger: [
+    {
+      key: "cron",
+      label: "Cron-расписание",
+      type: "text",
+      placeholder: "0 9 * * *",
+      help: "Стандартный cron: минута час день месяц день_недели",
+    },
+  ],
   http_call: [
     { key: "method", label: "Метод", type: "select", options: HTTP_METHODS },
     { key: "url", label: "URL", type: "text", placeholder: "https://api.example.com/{{id}}" },
@@ -94,9 +111,18 @@ export const CONFIG_SCHEMAS: Partial<Record<NodeType, ConfigField[]>> = {
       key: "action", label: "Действие", type: "select",
       options: ["read", "append", "update"].map((v) => ({ value: v, label: v })),
     },
-    { key: "spreadsheet_id", label: "ID таблицы", type: "text" },
-    { key: "range", label: "Диапазон", type: "text", placeholder: "A1:C10" },
+    { key: "spreadsheet_id", label: "ID таблицы", type: "text", help: "Из URL: docs.google.com/spreadsheets/d/<ID>/edit" },
+    { key: "range", label: "Диапазон", type: "text", placeholder: "Sheet1!A1:C10" },
+    {
+      key: "values",
+      label: "Значения для записи",
+      type: "textarea",
+      placeholder: "[[\"a\",\"b\"], [\"c\",\"d\"]]  или  a,b\\nc,d",
+      help: "Только для append/update. JSON-массив строк или CSV. Поддерживает {{var}}.",
+    },
+    { key: "output_var", label: "Переменная результата (для read)", type: "text", placeholder: "rows" },
     { key: "integration", label: "Интеграция", type: "integrationSelect" },
+    { key: "secret_ref", label: "Секрет (service-account JSON)", type: "text", help: "Имя секрета, в котором лежит SA-ключ. Шарь таблицу с client_email из этого ключа." },
   ],
   database: [
     {
@@ -160,11 +186,14 @@ export const CONFIG_SCHEMAS: Partial<Record<NodeType, ConfigField[]>> = {
   ],
   slot_fill: [
     { key: "max_attempts", label: "Попыток на слот", type: "number", placeholder: "3" },
+    { key: "use_llm", label: "Извлекать через LLM", type: "boolean", help: "На «Меня зовут Митрофан» сохранит «Митрофан», а не всю фразу. Без LLM сохраняется как есть." },
+    { key: "model", label: "Модель LLM", type: "text", placeholder: "yandexgpt-lite" },
     {
       key: "slots", label: "Слоты", type: "objectList", addLabel: "+ слот",
       itemFields: [
         { key: "name", label: "Имя слота", type: "text", placeholder: "phone" },
         { key: "question", label: "Вопрос", type: "text", placeholder: "Ваш телефон?" },
+        { key: "description", label: "Подсказка для LLM (опц.)", type: "text", placeholder: "номер телефона для связи" },
       ],
     },
   ],

@@ -78,6 +78,9 @@ export type NodeSpec = {
   defaultConfig: Record<string, unknown>;
   /** Terminal nodes (end) have no outgoing edges. */
   terminal?: boolean;
+  /** When true, hide from the palette — existing flows can still reference it,
+   *  but users can't drag-new it. */
+  hidden?: boolean;
 };
 
 export const NODE_GROUPS: { id: NodeGroup; label: string }[] = [
@@ -91,8 +94,8 @@ export const NODE_GROUPS: { id: NodeGroup; label: string }[] = [
 ];
 
 export const NODE_CATALOG: Record<NodeType, NodeSpec> = {
-  message_trigger: { type: "message_trigger", label: "Сообщение", group: "trigger", description: "Старт по входящему сообщению", defaultConfig: {} },
-  webhook_trigger: { type: "webhook_trigger", label: "Вебхук", group: "trigger", description: "Старт по внешнему вебхуку", defaultConfig: {} },
+  message_trigger: { type: "message_trigger", label: "Команда", group: "trigger", description: "Старт по сообщению (опц.: только при совпадении команды, например /start)", defaultConfig: { command: "" } },
+  webhook_trigger: { type: "webhook_trigger", label: "Вебхук", group: "trigger", description: "Старт по внешнему вебхуку", defaultConfig: {}, hidden: true },
   cron_trigger: { type: "cron_trigger", label: "Расписание", group: "trigger", description: "Старт по cron-расписанию", defaultConfig: { cron: "0 9 * * *" } },
   send_message: { type: "send_message", label: "Отправить сообщение", group: "message", description: "Сообщение пользователю", defaultConfig: { text: "" } },
   user_input: { type: "user_input", label: "Ждать ответ", group: "message", description: "Пауза до ответа пользователя", defaultConfig: { variable: "answer" } },

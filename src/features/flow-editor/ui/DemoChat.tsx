@@ -27,8 +27,26 @@ export function DemoChat({ flowId, onClose }: { flowId: string; onClose: () => v
       text: m.text ?? "",
       buttons: m.buttons,
     }));
-    if (res.waiting && res.slot_question) {
+    // slot_question is always also pushed into messages by the handler that
+    // sets it (agent / slot_fill), so rendering it separately doubles every line.
+    // Only fall back to slot_question when the handler somehow didn't queue
+    // a corresponding message bubble.
+    if (
+      res.waiting &&
+      res.slot_question &&
+      !fresh.some((m) => (m.text ?? "") === res.slot_question)
+    ) {
       bubbles.push({ role: "bot", text: res.slot_question });
+    }
+    const nodeErrors = (res as unknown as { node_errors?: { node: string; error: string }[] })
+      .node_errors;
+    if (nodeErrors && nodeErrors.length > 0) {
+      for (const ne of nodeErrors) {
+        bubbles.push({
+          role: "system",
+          text: `Нода ${ne.node.slice(0, 8)}…: ${ne.error}`,
+        });
+      }
     }
     if (res.error) bubbles.push({ role: "system", text: `Ошибка: ${res.error}` });
     if (res.state === "done") bubbles.push({ role: "system", text: "Диалог завершён." });
