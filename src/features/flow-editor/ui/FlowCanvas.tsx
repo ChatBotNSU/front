@@ -1,6 +1,5 @@
 import {
   Background,
-  Controls,
   MiniMap,
   ReactFlow,
   useReactFlow,
@@ -68,7 +67,6 @@ export function FlowCanvas() {
         defaultEdgeOptions={{ animated: false }}
       >
         <Background color="#2a2f3a" gap={20} />
-        <Controls className="!bg-panel !border-border" />
         <MiniMap
           pannable
           zoomable

@@ -138,6 +138,26 @@ export const CONFIG_SCHEMAS: Partial<Record<NodeType, ConfigField[]>> = {
       ],
     },
   ],
+  agent: [
+    {
+      key: "mode", label: "Режим", type: "select",
+      options: [
+        { value: "agent", label: "agent (LLM-извлечение)" },
+        { value: "fail-safe", label: "fail-safe (пошагово)" },
+      ],
+    },
+    { key: "confirm", label: "Запрашивать подтверждение", type: "boolean" },
+    { key: "model", label: "Модель LLM", type: "text", placeholder: "yandexgpt-lite" },
+    { key: "output_var", label: "Переменная результата", type: "text", placeholder: "agent" },
+    {
+      key: "fields", label: "Поля для сбора", type: "objectList", addLabel: "+ поле",
+      itemFields: [
+        { key: "name", label: "Имя поля", type: "text", placeholder: "city" },
+        { key: "question", label: "Уточняющий вопрос", type: "text", placeholder: "В какой город доставить?" },
+        { key: "description", label: "Подсказка для LLM (опц.)", type: "text", placeholder: "город доставки" },
+      ],
+    },
+  ],
   slot_fill: [
     { key: "max_attempts", label: "Попыток на слот", type: "number", placeholder: "3" },
     {
