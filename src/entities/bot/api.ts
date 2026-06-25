@@ -49,10 +49,10 @@ export function useDeleteBot() {
   });
 }
 
+// Only Telegram and the generic HTTP channel are exposed in the UI. The vk /
+// viber / whatsapp adapters stay registered on the backend so legacy bots keep
+// working, but new bots are limited to these two.
 export const CHANNELS = [
   { value: "telegram", label: "Telegram" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "vk", label: "VK" },
-  { value: "viber", label: "Viber" },
   { value: "generic", label: "Generic (HTTP)" },
 ] as const;

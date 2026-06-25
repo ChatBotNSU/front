@@ -1,20 +1,19 @@
 import type { ExecCondition, FlowNodeModel } from "@/entities/node/model/types";
+import { CONDITION_OPERATORS, OPERATOR_SYMBOLS, VALUELESS_OPERATORS } from "@/entities/node/model/types";
 import type { FlowDetail, FlowWritePayload } from "@/entities/flow/model/types";
 
 import type { EditorEdge, EditorNode } from "./types";
 
-const OPERATORS = ["eq", "neq", "gt", "lt", "contains", "exists", "not_exists", "in"] as const;
-
-/** Short human label for a condition edge, e.g. `text contains "hi"`. */
+/** Short human label for a condition edge, e.g. `text ≥ 100`. */
 export function conditionLabel(cond?: Omit<ExecCondition, "goto">): string {
   if (!cond) return "fallback";
   const field = cond.if?.replace(/^\$data\./, "") || "?";
-  for (const op of OPERATORS) {
+  for (const op of CONDITION_OPERATORS) {
     const value = cond[op];
     if (value !== undefined && value !== null) {
-      if (op === "exists") return `${field} есть`;
-      if (op === "not_exists") return `${field} нет`;
-      return `${field} ${op} ${JSON.stringify(value)}`;
+      const symbol = OPERATOR_SYMBOLS[op];
+      if (VALUELESS_OPERATORS.has(op)) return `${field} ${symbol}`;
+      return `${field} ${symbol} ${JSON.stringify(value)}`;
     }
   }
   return field;
@@ -35,6 +34,8 @@ export function flowToReactFlow(flow: FlowDetail): {
       label: n.label,
       config: n.config ?? {},
       isStart: n.id === flow.start_node,
+      dataIn: n.data_in ?? {},
+      dataOut: n.data_out ?? {},
     },
   }));
 
@@ -101,8 +102,8 @@ export function reactFlowToPayload(
       id: n.id,
       type: n.data.nodeType,
       label: n.data.label,
-      data_in: {},
-      data_out: {},
+      data_in: n.data.dataIn ?? {},
+      data_out: n.data.dataOut ?? {},
       config: n.data.config,
       exec_out: { conditions, fallback },
       position: { x: Math.round(n.position.x), y: Math.round(n.position.y) },

@@ -121,7 +121,6 @@ export const CONFIG_SCHEMAS: Partial<Record<NodeType, ConfigField[]>> = {
       help: "Только для append/update. JSON-массив строк или CSV. Поддерживает {{var}}.",
     },
     { key: "output_var", label: "Переменная результата (для read)", type: "text", placeholder: "rows" },
-    { key: "integration", label: "Интеграция", type: "integrationSelect" },
     { key: "secret_ref", label: "Секрет (service-account JSON)", type: "text", help: "Имя секрета, в котором лежит SA-ключ. Шарь таблицу с client_email из этого ключа." },
   ],
   database: [
@@ -139,10 +138,15 @@ export const CONFIG_SCHEMAS: Partial<Record<NodeType, ConfigField[]>> = {
   ],
   code: [
     {
-      key: "language", label: "Язык", type: "select",
-      options: ["python", "js"].map((v) => ({ value: v, label: v })),
+      key: "input_vars", label: "Входные переменные", type: "stringlist",
+      placeholder: "text, amount",
+      help: "Какие переменные сессии прокинуть в код (через запятую). Только они видны в скоупе.",
     },
-    { key: "source", label: "Код", type: "code", placeholder: "__result__ = a + b" },
+    {
+      key: "source", label: "Код (Python)", type: "code", placeholder: "__result__ = a + b",
+      help: "Результат запиши в __result__. Доступен в дальнейшем как {{output_var.result}}.",
+    },
+    { key: "output_var", label: "Сохранить результат в", type: "text", placeholder: "cr" },
   ],
   subgraph: [
     { key: "flow_id", label: "Дочерний флоу", type: "flowSelect" },

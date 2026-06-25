@@ -33,12 +33,70 @@ export type ExecCondition = {
   eq?: unknown;
   neq?: unknown;
   gt?: unknown;
+  gte?: unknown;
   lt?: unknown;
+  lte?: unknown;
   contains?: unknown;
   exists?: boolean;
   not_exists?: boolean;
   in?: unknown[];
+  not_in?: unknown[];
   goto: string;
+};
+
+/** Branch operators, in the order shown to the user. Single source of truth
+ * for the edge-condition UI and the canvas labels — keep in sync with the
+ * backend `ExecCondition` fields (models/node.py) and `resolver._matches`. */
+export const CONDITION_OPERATORS = [
+  "eq",
+  "neq",
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+  "contains",
+  "in",
+  "not_in",
+  "exists",
+  "not_exists",
+] as const;
+
+export type ConditionOperator = (typeof CONDITION_OPERATORS)[number];
+
+/** Operators that compare against a value (the rest are presence checks). */
+export const VALUELESS_OPERATORS: ReadonlySet<ConditionOperator> = new Set([
+  "exists",
+  "not_exists",
+]);
+
+/** Human-readable label for the operator dropdown: symbol + Russian gloss. */
+export const OPERATOR_LABELS: Record<ConditionOperator, string> = {
+  eq: "= равно",
+  neq: "≠ не равно",
+  gt: "> больше",
+  gte: "≥ больше или равно",
+  lt: "< меньше",
+  lte: "≤ меньше или равно",
+  contains: "⊃ содержит",
+  in: "∈ входит в список",
+  not_in: "∉ не входит в список",
+  exists: "✓ задано",
+  not_exists: "✗ не задано",
+};
+
+/** Compact operator glyph for canvas edge labels (`text ≥ 100`). */
+export const OPERATOR_SYMBOLS: Record<ConditionOperator, string> = {
+  eq: "=",
+  neq: "≠",
+  gt: ">",
+  gte: "≥",
+  lt: "<",
+  lte: "≤",
+  contains: "содержит",
+  in: "в",
+  not_in: "не в",
+  exists: "задано",
+  not_exists: "не задано",
 };
 
 export type ExecOut = {
@@ -106,18 +164,18 @@ export const NODE_CATALOG: Record<NodeType, NodeSpec> = {
   transform: { type: "transform", label: "Трансформация", group: "data", description: "Преобразование данных", defaultConfig: {} },
   loop: { type: "loop", label: "Цикл", group: "data", description: "Итерация по списку", defaultConfig: {} },
   http_call: { type: "http_call", label: "HTTP-запрос", group: "integration", description: "Внешний HTTP-вызов", defaultConfig: { method: "GET", url: "" } },
-  crm: { type: "crm", label: "CRM", group: "integration", description: "Bitrix/Amo/HubSpot/Salesforce", defaultConfig: { action: "find", entity: "contact" } },
-  notify: { type: "notify", label: "Уведомление", group: "integration", description: "Оповещение оператора", defaultConfig: {} },
+  crm: { type: "crm", label: "CRM", group: "integration", description: "Bitrix/Amo/HubSpot/Salesforce", defaultConfig: { action: "find", entity: "contact" }, hidden: true },
+  notify: { type: "notify", label: "Уведомление", group: "integration", description: "Оповещение оператора", defaultConfig: {}, hidden: true },
   sheets: { type: "sheets", label: "Google Sheets", group: "integration", description: "Чтение/запись таблиц", defaultConfig: { action: "append" } },
-  calendar: { type: "calendar", label: "Календарь", group: "integration", description: "Google Calendar / Calendly", defaultConfig: { action: "create" } },
-  payment: { type: "payment", label: "Оплата", group: "integration", description: "Stripe/YooKassa/Tinkoff", defaultConfig: { currency: "RUB" } },
+  calendar: { type: "calendar", label: "Календарь", group: "integration", description: "Google Calendar / Calendly", defaultConfig: { action: "create" }, hidden: true },
+  payment: { type: "payment", label: "Оплата", group: "integration", description: "Stripe/YooKassa/Tinkoff", defaultConfig: { currency: "RUB" }, hidden: true },
   wait: { type: "wait", label: "Ожидание", group: "flow", description: "Пауза до события/таймера", defaultConfig: {} },
   handoff: { type: "handoff", label: "Оператор", group: "flow", description: "Передача живому оператору", defaultConfig: {} },
   subgraph: { type: "subgraph", label: "Подграф", group: "flow", description: "Вызов другого флоу", defaultConfig: { flow_id: "" } },
   end: { type: "end", label: "Конец", group: "flow", description: "Завершение ветки", defaultConfig: {}, terminal: true },
   code: { type: "code", label: "Код", group: "advanced", description: "Python в песочнице", defaultConfig: { language: "python", source: "" } },
-  database: { type: "database", label: "Таблица данных", group: "data", description: "Встроенные таблицы проекта", defaultConfig: { action: "query", table: "" } },
-  sql: { type: "sql", label: "SQL", group: "advanced", description: "Запрос во внешнюю БД", defaultConfig: { sql: "" } },
+  database: { type: "database", label: "Таблица данных", group: "data", description: "Встроенные таблицы проекта", defaultConfig: { action: "query", table: "" }, hidden: true },
+  sql: { type: "sql", label: "SQL", group: "advanced", description: "Запрос во внешнюю БД", defaultConfig: { sql: "" }, hidden: true },
 };
 
 export function nodeSpec(type: NodeType): NodeSpec {

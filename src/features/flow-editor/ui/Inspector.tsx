@@ -4,7 +4,13 @@ import { useFlow, useFlows, useFlowVersions } from "@/entities/flow/api";
 import { readFlowInterface } from "@/entities/flow/model/types";
 import { useIntegrations } from "@/entities/integration/api";
 import { getConfigFields } from "@/entities/node/model/configSchema";
-import { NODE_CATALOG } from "@/entities/node/model/types";
+import {
+  CONDITION_OPERATORS,
+  NODE_CATALOG,
+  OPERATOR_LABELS,
+  VALUELESS_OPERATORS,
+} from "@/entities/node/model/types";
+import type { ConditionOperator } from "@/entities/node/model/types";
 import { Button } from "@/shared/ui";
 
 import { useEditorStore } from "../model/editorStore";
@@ -228,12 +234,11 @@ function NodeInspector({ id }: { id: string }) {
   );
 }
 
-const OPERATORS = ["eq", "neq", "gt", "lt", "contains", "exists", "not_exists", "in"] as const;
-type Operator = (typeof OPERATORS)[number];
+type Operator = ConditionOperator;
 
 function currentOperator(cond?: EditorEdgeData["condition"]): Operator {
   if (!cond) return "eq";
-  return OPERATORS.find((op) => cond[op] !== undefined && cond[op] !== null) ?? "eq";
+  return CONDITION_OPERATORS.find((op) => cond[op] !== undefined && cond[op] !== null) ?? "eq";
 }
 
 function parseValue(raw: string): unknown {
@@ -242,6 +247,14 @@ function parseValue(raw: string): unknown {
   } catch {
     return raw;
   }
+}
+
+/** Render a stored condition value back into the text input. Arrays/objects
+ * (e.g. the `in` / `not_in` lists) round-trip as JSON; scalars stay plain. */
+function formatValue(value: unknown): string {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }
 
 function EdgeInspector({ id }: { id: string }) {
@@ -253,7 +266,7 @@ function EdgeInspector({ id }: { id: string }) {
   const data = edge.data ?? { kind: "fallback" };
   const cond = data.condition;
   const op = currentOperator(cond);
-  const noValue = op === "exists" || op === "not_exists";
+  const noValue = VALUELESS_OPERATORS.has(op);
 
   function setKind(kind: EditorEdgeData["kind"]) {
     updateEdge(id, kind === "fallback" ? { kind } : { kind, condition: { if: cond?.if ?? "" } });
@@ -267,7 +280,7 @@ function EdgeInspector({ id }: { id: string }) {
     const base = { if: cond?.if ?? "" };
     updateEdge(id, {
       kind: "condition",
-      condition: next === "exists" || next === "not_exists" ? { ...base, [next]: true } : { ...base, [next]: "" },
+      condition: VALUELESS_OPERATORS.has(next) ? { ...base, [next]: true } : { ...base, [next]: "" },
     });
   }
 
@@ -294,9 +307,9 @@ function EdgeInspector({ id }: { id: string }) {
           </Field>
           <Field label="Оператор">
             <select className={inputCls} value={op} onChange={(e) => setOperator(e.target.value as Operator)}>
-              {OPERATORS.map((o) => (
+              {CONDITION_OPERATORS.map((o) => (
                 <option key={o} value={o}>
-                  {o}
+                  {OPERATOR_LABELS[o]}
                 </option>
               ))}
             </select>
@@ -305,9 +318,15 @@ function EdgeInspector({ id }: { id: string }) {
             <Field label="Значение">
               <input
                 className={inputCls}
-                value={cond ? String(cond[op] ?? "") : ""}
+                placeholder={op === "in" || op === "not_in" ? '["a", "b"]' : undefined}
+                value={cond ? formatValue(cond[op]) : ""}
                 onChange={(e) => setField({ [op]: parseValue(e.target.value) })}
               />
+              {(op === "in" || op === "not_in") && (
+                <span className="mt-1 block text-xs text-muted">
+                  Список значений в JSON: <code>["a", "b"]</code>
+                </span>
+              )}
             </Field>
           )}
         </>

@@ -8,10 +8,9 @@ import { Spinner } from "@/shared/ui";
 import { AnalyticsTab } from "./AnalyticsTab";
 import { BotsTab } from "./BotsTab";
 import { FlowsTab } from "./FlowsTab";
-import { IntegrationsTab } from "./IntegrationsTab";
 import { SecretsTab } from "./SecretsTab";
 
-type Tab = "flows" | "bots" | "analytics" | "integrations" | "secrets";
+type Tab = "flows" | "bots" | "analytics" | "secrets";
 
 export function ProjectPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -43,9 +42,6 @@ export function ProjectPage() {
         <TabButton active={tab === "analytics"} onClick={() => setTab("analytics")}>
           Аналитика
         </TabButton>
-        <TabButton active={tab === "integrations"} onClick={() => setTab("integrations")}>
-          Интеграции
-        </TabButton>
         <TabButton active={tab === "secrets"} onClick={() => setTab("secrets")}>
           Секреты
         </TabButton>
@@ -54,7 +50,6 @@ export function ProjectPage() {
       {projectId && tab === "flows" && <FlowsTab projectId={projectId} />}
       {projectId && tab === "bots" && <BotsTab projectId={projectId} />}
       {projectId && tab === "analytics" && <AnalyticsTab projectId={projectId} />}
-      {projectId && tab === "integrations" && <IntegrationsTab projectId={projectId} />}
       {tab === "secrets" && <SecretsTab />}
     </div>
   );
